@@ -263,6 +263,8 @@ function extractSeriesInfo(title) {
     [/^(.{2,}?)\s*[\(\[]\s*(\d+)\s*[\)\]]$/, false],
     // "제목 강의01", "제목 강의16" — 강의+숫자 suffix
     [/^(.{6,}?)\s+강의(\d+)$/, false],
+    // "제목 01 서브타이틀" — 2자리 숫자 양쪽에 공백 (e.g. "...감사의 힘 01 감사 실천의 이점")
+    [/^(.{6,}?)\s+(\d{2})\s+[가-힣A-Za-z]/, false],
     // "제목 01서브타이틀" — 2자리 숫자 뒤 바로 한글/영문 연결 (공백 없음)
     [/^(.{6,}?)\s+(\d{2})(?=[가-힣A-Za-z])/, false],
     // "제목 1" — 끝 숫자 (1~3자리)
@@ -311,18 +313,28 @@ function groupVideosBySeries(videos) {
       }, '');
       var sid = 'sr-' + base.replace(/[^a-zA-Z0-9가-힣]/g, '').substring(0, 16);
 
-      /* ── 부모 영상 탐색: base 포함 + 소개/개요/overview/intro 포함 → 시리즈 대표 카드로 승격 */
+      /* ── 부모 영상 탐색: base 포함 + 소개/개요/overview/intro 포함 → 시리즈 대표 카드로 승격
+           Pass 1: title이 base로 시작하는 정확한 매칭 우선 (e.g. "감사의 힘 소개")
+           Pass 2: base를 포함하는 느슨한 매칭 (e.g. "023-V-01 ... 소개") */
       var parentVideo = null;
       var baseLow = base.toLowerCase();
+      var overviewRe = /소개|개요|overview|intro|introduction/;
+      // Pass 1: startsWith(base)
       for (var pi = noSeries.length - 1; pi >= 0; pi--) {
         var pv = noSeries[pi];
         var pvLow = (pv.title || '').toLowerCase();
-        var hasBase = pvLow.indexOf(baseLow) !== -1;
-        var isOverview = /소개|개요|overview|intro|introduction/.test(pvLow);
-        if (hasBase && isOverview) {
-          parentVideo = pv;
-          noSeries.splice(pi, 1);
-          break;
+        if (pvLow.startsWith(baseLow) && overviewRe.test(pvLow)) {
+          parentVideo = pv; noSeries.splice(pi, 1); break;
+        }
+      }
+      // Pass 2: contains(base) — fallback (e.g. 앞에 코드번호가 붙은 경우)
+      if (!parentVideo) {
+        for (var pi = noSeries.length - 1; pi >= 0; pi--) {
+          var pv = noSeries[pi];
+          var pvLow = (pv.title || '').toLowerCase();
+          if (pvLow.indexOf(baseLow) !== -1 && overviewRe.test(pvLow)) {
+            parentVideo = pv; noSeries.splice(pi, 1); break;
+          }
         }
       }
 
