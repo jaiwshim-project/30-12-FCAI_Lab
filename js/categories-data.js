@@ -261,6 +261,10 @@ function extractSeriesInfo(title) {
     [/^(.{2,}?)\s*[-–]\s*(\d+)$/, false],
     // "제목 (1)", "제목 [1]"
     [/^(.{2,}?)\s*[\(\[]\s*(\d+)\s*[\)\]]$/, false],
+    // "제목 강의01", "제목 강의16" — 강의+숫자 suffix
+    [/^(.{6,}?)\s+강의(\d+)$/, false],
+    // "제목 01서브타이틀" — 2자리 숫자 뒤 바로 한글/영문 연결 (공백 없음)
+    [/^(.{6,}?)\s+(\d{2})(?=[가-힣A-Za-z])/, false],
     // "제목 1" — 끝 숫자 (1~3자리)
     [/^(.{3,}?)\s+(\d{1,3})$/, false],
   ];
@@ -306,22 +310,41 @@ function groupVideosBySeries(videos) {
         return ed > d ? ed : d;
       }, '');
       var sid = 'sr-' + base.replace(/[^a-zA-Z0-9가-힣]/g, '').substring(0, 16);
+
+      /* ── 부모 영상 탐색: base 포함 + 소개/개요/overview/intro 포함 → 시리즈 대표 카드로 승격 */
+      var parentVideo = null;
+      var baseLow = base.toLowerCase();
+      for (var pi = noSeries.length - 1; pi >= 0; pi--) {
+        var pv = noSeries[pi];
+        var pvLow = (pv.title || '').toLowerCase();
+        var hasBase = pvLow.indexOf(baseLow) !== -1;
+        var isOverview = /소개|개요|overview|intro|introduction/.test(pvLow);
+        if (hasBase && isOverview) {
+          parentVideo = pv;
+          noSeries.splice(pi, 1);
+          break;
+        }
+      }
+
+      var face = parentVideo || eps[0];
       result.push({
-        _isSeries  : true,
-        _seriesId  : sid,
-        title      : base,
-        episodes   : eps,
-        id         : eps[0].video_id || eps[0].id,
-        video_id   : eps[0].video_id || eps[0].id,
-        thumbnail_url: eps[0].thumbnail_url
-                    || ('https://img.youtube.com/vi/' + (eps[0].video_id || eps[0].id) + '/mqdefault.jpg'),
-        mainId     : eps[0].mainId,
-        subId      : eps[0].subId,
-        category_id: eps[0].category_id,
-        view_count : totalViews,
-        views      : totalViews,
-        published_at: latestDate,
-        date       : latestDate,
+        _isSeries    : true,
+        _seriesId    : sid,
+        _parentTitle : parentVideo ? parentVideo.title : null,
+        title        : parentVideo ? parentVideo.title : base,
+        episodes     : eps,
+        id           : face.video_id || face.id,
+        video_id     : face.video_id || face.id,
+        url          : face.url,
+        thumbnail_url: face.thumbnail_url
+                     || ('https://img.youtube.com/vi/' + (face.video_id || face.id) + '/mqdefault.jpg'),
+        mainId       : eps[0].mainId,
+        subId        : eps[0].subId,
+        category_id  : eps[0].category_id,
+        view_count   : totalViews,
+        views        : totalViews,
+        published_at : latestDate,
+        date         : latestDate,
       });
     } else {
       noSeries.push(eps[0]);
