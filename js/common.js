@@ -39,7 +39,7 @@ function renderNav(activePage = '') {
     <nav class="nav-bar" id="mainNav">
       <div class="nav-inner">
         <a href="index.html" class="nav-logo" style="padding:0;">
-          <img src="assets/logo.svg" alt="미래역량AI연구소" height="44"
+          <img src="assets/logo.png" alt="미래역량AI연구소" height="44"
             style="height:44px;width:auto;display:block;"
             onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
           <div style="display:none;align-items:center;gap:8px;">
