@@ -194,13 +194,16 @@ function renderMainTabs() {
   if (!el) return;
 
   var total = counts._total || 0;
+  var totalSeries = TAXONOMY.reduce(function(s, m) {
+    return s + ((counts[m.id] || {})._seriesTotal || 0);
+  }, 0);
 
   /* 헤더 카운트 */
   var hc = document.getElementById('headerCount');
   if (hc) hc.textContent = '총 ' + total.toLocaleString() + '개 강의';
 
   var html = '<button class="main-tab' + (state.mainId==='all'?' active':'') +
-             '" data-main="all">📋 전체 <span class="tab-count">' + total + '영상</span></button>';
+             '" data-main="all">📋 전체 <span class="tab-count">' + totalSeries + '강의(' + total + '영상)</span></button>';
 
   TAXONOMY.forEach(function(main) {
     var mc = counts[main.id] || {};
