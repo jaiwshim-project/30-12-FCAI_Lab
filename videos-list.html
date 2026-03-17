@@ -413,6 +413,10 @@
       <p style="color:#64748B;font-size:0.95rem;">YouTube 채널의 모든 강의를 검색하고 필터링하세요</p>
       <div class="hero-stats" id="heroStats">
         <div class="hero-stat-badge">
+          <div class="num" id="statSeries">–</div>
+          <div class="lbl">총 강의수</div>
+        </div>
+        <div class="hero-stat-badge">
           <div class="num" id="statTotal">–</div>
           <div class="lbl">총 영상</div>
         </div>
@@ -779,6 +783,8 @@ function goPage(p) {
 
 /* ── 통계 ── */
 function updateStats(videos) {
+  const seriesCount = (typeof groupVideosBySeries === 'function') ? groupVideosBySeries(videos).length : videos.length;
+  document.getElementById('statSeries').textContent = seriesCount.toLocaleString();
   document.getElementById('statTotal').textContent  = videos.length.toLocaleString();
   document.getElementById('statViews').textContent  = videos.reduce((s,v)=>s+v.views,0).toLocaleString();
   document.getElementById('statLikes').textContent  = videos.reduce((s,v)=>s+v.likes,0).toLocaleString();
