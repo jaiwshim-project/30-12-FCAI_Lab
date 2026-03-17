@@ -224,12 +224,13 @@ function getCounts() {
   if (_COUNTS) return _COUNTS;
   var counts = { _total: 0 };
   TAXONOMY.forEach(function(main) {
-    counts[main.id] = { _total: 0, subs: {} };
+    counts[main.id] = { _total: 0, subs: {}, _seriesTotal: 0, seriesCount: {} };
     main.subs.forEach(function(sub) { counts[main.id].subs[sub.id] = 0; });
   });
-  counts.other = { _total: 0, subs: {} };
+  counts.other = { _total: 0, subs: {}, _seriesTotal: 0, seriesCount: {} };
 
-  getCategorizedVideos().forEach(function(v) {
+  var allCat = getCategorizedVideos();
+  allCat.forEach(function(v) {
     counts._total++;
     if (v.mainId === 'other') {
       counts.other._total++;
@@ -240,6 +241,17 @@ function getCounts() {
       }
     }
   });
+
+  /* 시리즈 그룹핑 후 강의(카드) 수 계산 */
+  TAXONOMY.forEach(function(main) {
+    var mainVids = allCat.filter(function(v) { return v.mainId === main.id; });
+    counts[main.id]._seriesTotal = groupVideosBySeries(mainVids).length;
+    main.subs.forEach(function(sub) {
+      var subVids = mainVids.filter(function(v) { return v.subId === sub.id; });
+      counts[main.id].seriesCount[sub.id] = groupVideosBySeries(subVids).length;
+    });
+  });
+
   _COUNTS = counts;
   return counts;
 }

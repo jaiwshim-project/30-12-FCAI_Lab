@@ -200,14 +200,16 @@ function renderMainTabs() {
   if (hc) hc.textContent = '총 ' + total.toLocaleString() + '개 강의';
 
   var html = '<button class="main-tab' + (state.mainId==='all'?' active':'') +
-             '" data-main="all">📋 전체 <span class="tab-count">' + total + '</span></button>';
+             '" data-main="all">📋 전체 <span class="tab-count">' + total + '영상</span></button>';
 
   TAXONOMY.forEach(function(main) {
-    var cnt = (counts[main.id] || {})._total || 0;
+    var mc = counts[main.id] || {};
+    var series = mc._seriesTotal || 0;
+    var total  = mc._total || 0;
     html += '<button class="main-tab' + (state.mainId===main.id?' active':'') +
             '" data-main="' + main.id + '">' +
             main.icon + ' ' + main.name +
-            ' <span class="tab-count">' + cnt + '</span></button>';
+            ' <span class="tab-count">' + series + '강의(' + total + '영상)</span></button>';
   });
 
   /* 기타 */
@@ -252,11 +254,12 @@ function renderSubPills() {
           '전체 <span class="pill-count">' + (mainCounts._total||0) + '</span></button>';
 
   main.subs.forEach(function(sub) {
-    var cnt = mainCounts.subs[sub.id] || 0;
+    var rawCnt    = mainCounts.subs[sub.id] || 0;
+    var seriesCnt = (mainCounts.seriesCount || {})[sub.id] || 0;
     html += '<button class="category-pill' + (state.subId===sub.id?' active':'') +
             '" data-sub="' + sub.id + '">' +
             sub.icon + ' ' + sub.name +
-            ' <span class="pill-count">' + cnt + '</span></button>';
+            ' <span class="pill-count">' + seriesCnt + '강의(' + rawCnt + '영상)</span></button>';
   });
 
   bar.innerHTML = html;
