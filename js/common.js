@@ -38,11 +38,16 @@ function renderNav(activePage = '') {
   const navHTML = `
     <nav class="nav-bar" id="mainNav">
       <div class="nav-inner">
-        <a href="index.html" class="nav-logo">
-          <div class="nav-logo-icon">🎓</div>
-          <div>
-            <div class="nav-logo-text">미래역량AI연구소</div>
-            <div class="nav-logo-sub">AI 학습 플랫폼</div>
+        <a href="index.html" class="nav-logo" style="padding:0;">
+          <img src="assets/logo.svg" alt="미래역량AI연구소" height="44"
+            style="height:44px;width:auto;display:block;"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+          <div style="display:none;align-items:center;gap:8px;">
+            <div class="nav-logo-icon">🎓</div>
+            <div>
+              <div class="nav-logo-text">미래역량AI연구소</div>
+              <div class="nav-logo-sub">AI 학습 플랫폼</div>
+            </div>
           </div>
         </a>
 
@@ -585,6 +590,66 @@ function renderVideoCard(video, options = {}) {
       </div>
     </article>
   `;
+}
+
+/**
+ * 시리즈 카드 HTML 반환
+ */
+function renderSeriesCard(series) {
+  var thumb = series.thumbnail_url
+    || ('https://img.youtube.com/vi/' + series.video_id + '/mqdefault.jpg');
+  var epCount = series.episodes.length;
+  var totalViews = (series.view_count || 0).toLocaleString();
+  var sid = series._seriesId || ('sr' + series.title.replace(/[^a-zA-Z0-9가-힣]/g,'').substring(0,12));
+
+  var catBadge = '';
+  if (typeof getCategoryById === 'function' && series.category_id && series.category_id !== 'other') {
+    var cat = getCategoryById(series.category_id);
+    if (cat) catBadge = '<span class="badge badge-blue">' + cat.icon + ' ' + cat.name + '</span>';
+  }
+
+  var episodesHtml = series.episodes.map(function(ep) {
+    var epThumb = ep.thumbnail_url
+      || ('https://img.youtube.com/vi/' + (ep.video_id || ep.id) + '/mqdefault.jpg');
+    var epUrl = ep.url || ('https://youtu.be/' + (ep.video_id || ep.id));
+    var views = (ep.view_count || ep.views || 0).toLocaleString();
+    return '<a class="episode-item" href="' + epUrl + '" target="_blank" rel="noopener">'
+      + '<span class="ep-num">' + ep._episodeNum + '강</span>'
+      + '<img class="ep-thumb" src="' + epThumb + '" loading="lazy" onerror="this.style.display=\'none\'">'
+      + '<span class="ep-title">' + escapeHtml(ep.title) + '</span>'
+      + '<span class="ep-views">👁 ' + views + '</span>'
+      + '</a>';
+  }).join('');
+
+  return '<div class="series-card">'
+    + '<div class="series-card-header" onclick="toggleSeriesCard(\'' + sid + '\')">'
+      + '<div class="series-thumb-wrap">'
+        + '<img src="' + thumb + '" alt="' + escapeHtml(series.title) + '" loading="lazy">'
+        + '<div class="series-ep-count">' + epCount + '강</div>'
+      + '</div>'
+      + '<div class="series-info">'
+        + (catBadge ? '<div class="series-cat">' + catBadge + '</div>' : '')
+        + '<h3 class="series-title">' + escapeHtml(series.title) + '</h3>'
+        + '<div class="series-meta">총 ' + epCount + '강 &nbsp;·&nbsp; 조회수 합계 ' + totalViews + '</div>'
+        + '<button class="series-toggle-btn" id="btn-' + sid + '">▼ 강의 목록 펼치기</button>'
+      + '</div>'
+    + '</div>'
+    + '<div class="series-episodes" id="ep-' + sid + '" style="display:none">'
+      + '<div class="episode-list">' + episodesHtml + '</div>'
+    + '</div>'
+  + '</div>';
+}
+
+/**
+ * 시리즈 카드 토글
+ */
+function toggleSeriesCard(sid) {
+  var el  = document.getElementById('ep-' + sid);
+  var btn = document.getElementById('btn-' + sid);
+  if (!el) return;
+  var isOpen = el.style.display !== 'none';
+  el.style.display = isOpen ? 'none' : 'block';
+  if (btn) btn.textContent = isOpen ? '▼ 강의 목록 펼치기' : '▲ 강의 목록 접기';
 }
 
 /**

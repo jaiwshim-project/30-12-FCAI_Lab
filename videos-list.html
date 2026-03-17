@@ -495,6 +495,7 @@
 /* ── 상태 ── */
 let allVideos = typeof VIDEOS_DATA !== 'undefined' ? VIDEOS_DATA : [];
 let filtered  = [...allVideos];
+let groupedFiltered = [];
 let currentYear = 'all';
 let currentSort = 'date-desc';
 let currentPage = 1;
@@ -590,61 +591,145 @@ function applyFilters() {
     return 0;
   });
 
+  /* 시리즈 그룹핑 후 카운트 */
+  const rawG = filtered.map(v => Object.assign({}, v, {
+    video_id: v.id, view_count: v.views,
+    thumbnail_url: `https://img.youtube.com/vi/${v.id}/mqdefault.jpg`,
+    published_at: v.date,
+    mainId: typeof getVideoCategory === 'function' ? getVideoCategory(v.title).mainId : 'other',
+    subId:  typeof getVideoCategory === 'function' ? getVideoCategory(v.title).subId  : 'other',
+    category_id: typeof getVideoCategory === 'function' ? getVideoCategory(v.title).subId : 'other',
+  }));
+  groupedFiltered = typeof groupVideosBySeries === 'function' ? groupVideosBySeries(rawG) : rawG;
+  const seriesCnt = groupedFiltered.filter(v => v._isSeries).length;
+
   document.getElementById('countLabel').innerHTML =
-    `총 <strong>${filtered.length.toLocaleString()}</strong>편`;
+    `총 <strong>${filtered.length.toLocaleString()}</strong>편` +
+    (seriesCnt > 0 ? ` (<strong>${seriesCnt}</strong>시리즈)` : '');
   renderPage();
   renderPagination();
 }
 
+/* ── 카테고리 배지 생성 ── */
+function makeCatBadges(title) {
+  if (typeof getVideoCategory !== 'function') return '';
+  const cat = getVideoCategory(title);
+  if (cat.mainId !== 'other') {
+    const mainInfo = getMainById(cat.mainId);
+    const subInfo  = getSubById(cat.subId);
+    const mainLabel = mainInfo ? (mainInfo.icon + ' ' + mainInfo.name) : cat.mainId;
+    const subLabel  = subInfo  ? subInfo.name : cat.subId;
+    return `<div class="cat-badges"><span class="cat-badge cat-badge-main">${mainLabel}</span><span class="cat-badge cat-badge-sub">${subLabel}</span></div>`;
+  }
+  return `<div class="cat-badges"><span class="cat-badge cat-badge-other">📋 미분류</span></div>`;
+}
+
 /* ── 렌더링 ── */
 function renderPage() {
-  const start = (currentPage - 1) * perPage;
-  const slice = filtered.slice(start, start + perPage);
   const tbody = document.getElementById('listBody');
   const noRes = document.getElementById('noResult');
 
-  if (!slice.length) {
+  if (!filtered.length) {
     tbody.innerHTML = '';
     noRes.style.display = 'block';
     return;
   }
   noRes.style.display = 'none';
 
-  tbody.innerHTML = slice.map((v, i) => {
-    const idx = start + i + 1;
-    const thumb = `https://img.youtube.com/vi/${v.id}/mqdefault.jpg`;
-    const dateStr = v.date || '–';
+  /* 시리즈 그룹핑 */
+  const rawForGrouping = filtered.map(v => Object.assign({}, v, {
+    video_id: v.id, view_count: v.views,
+    thumbnail_url: `https://img.youtube.com/vi/${v.id}/mqdefault.jpg`,
+    published_at: v.date,
+    mainId: typeof getVideoCategory === 'function' ? getVideoCategory(v.title).mainId : 'other',
+    subId:  typeof getVideoCategory === 'function' ? getVideoCategory(v.title).subId  : 'other',
+    category_id: typeof getVideoCategory === 'function' ? getVideoCategory(v.title).subId : 'other',
+  }));
+  const grouped = typeof groupVideosBySeries === 'function'
+    ? groupVideosBySeries(rawForGrouping) : rawForGrouping;
 
-    // 카테고리 배지
-    let catHtml = '';
-    if (typeof getVideoCategory === 'function') {
-      const cat = getVideoCategory(v.title);
-      if (cat.mainId !== 'other') {
-        const mainInfo = getMainById(cat.mainId);
-        const subInfo  = getSubById(cat.subId);
-        const mainLabel = mainInfo ? (mainInfo.icon + ' ' + mainInfo.name) : cat.mainId;
-        const subLabel  = subInfo  ? subInfo.name : cat.subId;
-        catHtml = `<div class="cat-badges"><span class="cat-badge cat-badge-main">${mainLabel}</span><span class="cat-badge cat-badge-sub">${subLabel}</span></div>`;
-      } else {
-        catHtml = `<div class="cat-badges"><span class="cat-badge cat-badge-other">📋 미분류</span></div>`;
-      }
+  const start = (currentPage - 1) * perPage;
+  const slice = grouped.slice(start, start + perPage);
+
+  let rowNum = start;
+  const rows = slice.map(item => {
+    rowNum++;
+    if (item._isSeries) {
+      /* ── 시리즈 행 ── */
+      const sid = item._seriesId || ('sr' + rowNum);
+      const epCount = item.episodes.length;
+      const totalViews = (item.view_count || 0).toLocaleString();
+      const catHtml = makeCatBadges(item.episodes[0] ? item.episodes[0].title : item.title);
+      const epRows = item.episodes.map((ep, ei) => {
+        const epThumb = `https://img.youtube.com/vi/${ep.video_id || ep.id}/mqdefault.jpg`;
+        const epUrl = ep.url || `https://youtu.be/${ep.video_id || ep.id}`;
+        const epCat = makeCatBadges(ep.title);
+        return `<tr class="episode-table-row" id="ep-${sid}-${ei}" style="display:none">
+          <td class="td-num" style="color:#6366F1;">${ep._episodeNum}</td>
+          <td class="td-thumb"><img src="${epThumb}" alt="" loading="lazy" style="width:72px;height:40px;object-fit:cover;border-radius:5px;"></td>
+          <td class="td-title"><a href="${epUrl}" target="_blank" rel="noopener">${escHtml(ep.title)}</a>${epCat}</td>
+          <td class="td-date">${ep.date || '–'}</td>
+          <td class="td-views">${(ep.views||0).toLocaleString()}</td>
+          <td class="td-likes">♥ ${(ep.likes||0).toLocaleString()}</td>
+          <td class="td-comments">💬 ${(ep.comments||0).toLocaleString()}</td>
+          <td class="td-link"><a href="${epUrl}" target="_blank" rel="noopener">▶ 보기</a></td>
+        </tr>`;
+      }).join('');
+
+      return `<tr class="series-table-row" onclick="toggleTableSeries('${sid}', ${epCount})">
+        <td class="td-num">${rowNum}</td>
+        <td class="td-thumb"><img src="${item.thumbnail_url}" alt="" loading="lazy" style="width:88px;height:50px;object-fit:cover;border-radius:6px;"></td>
+        <td class="td-title">
+          <span class="series-badge">📚 ${epCount}강</span>
+          <a href="#" onclick="return false;" style="color:#0F172A;font-weight:700;">${escHtml(item.title)}</a>
+          ${catHtml}
+          <div style="margin-top:5px;"><button id="btn-${sid}" style="background:#EEF2FF;border:1px solid rgba(99,102,241,0.3);border-radius:20px;color:#1D4ED8;font-size:0.72rem;font-weight:700;padding:2px 10px;cursor:pointer;font-family:inherit;">▼ 펼치기</button></div>
+        </td>
+        <td class="td-date">${item.date || '–'}</td>
+        <td class="td-views">${totalViews}</td>
+        <td class="td-likes">–</td>
+        <td class="td-comments">–</td>
+        <td class="td-link">–</td>
+      </tr>${epRows}`;
+    } else {
+      /* ── 단일 영상 행 ── */
+      const v = item;
+      const id = v.video_id || v.id;
+      const thumb = `https://img.youtube.com/vi/${id}/mqdefault.jpg`;
+      const url = v.url || `https://youtu.be/${id}`;
+      const catHtml = makeCatBadges(v.title);
+      return `<tr>
+        <td class="td-num">${rowNum}</td>
+        <td class="td-thumb"><img src="${thumb}" alt="" loading="lazy" onerror="this.src='data:image/svg+xml,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'88\\' height=\\'50\\'><rect fill=\\'%23EEF2FF\\' width=\\'88\\' height=\\'50\\'/><text x=\\'50%\\' y=\\'55%\\' fill=\\'%2394A3B8\\' font-size=\\'20\\' text-anchor=\\'middle\\'>▶</text></svg>'"></td>
+        <td class="td-title"><a href="${url}" target="_blank" rel="noopener">${escHtml(v.title)}</a>${catHtml}</td>
+        <td class="td-date">${v.date || '–'}</td>
+        <td class="td-views">${(v.views||0).toLocaleString()}</td>
+        <td class="td-likes">♥ ${(v.likes||0).toLocaleString()}</td>
+        <td class="td-comments">💬 ${(v.comments||0).toLocaleString()}</td>
+        <td class="td-link"><a href="${url}" target="_blank" rel="noopener">▶ 보기</a></td>
+      </tr>`;
     }
+  });
+  tbody.innerHTML = rows.join('');
+}
 
-    return `<tr>
-      <td class="td-num">${idx}</td>
-      <td class="td-thumb"><img src="${thumb}" alt="" loading="lazy" onerror="this.src='data:image/svg+xml,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'88\\' height=\\'50\\'><rect fill=\\'%23EEF2FF\\' width=\\'88\\' height=\\'50\\'/><text x=\\'50%\\' y=\\'55%\\' fill=\\'%2394A3B8\\' font-size=\\'20\\' text-anchor=\\'middle\\'>▶</text></svg>'"></td>
-      <td class="td-title"><a href="${v.url}" target="_blank" rel="noopener">${escHtml(v.title)}</a>${catHtml}</td>
-      <td class="td-date">${dateStr}</td>
-      <td class="td-views">${v.views.toLocaleString()}</td>
-      <td class="td-likes">♥ ${v.likes.toLocaleString()}</td>
-      <td class="td-comments">💬 ${v.comments.toLocaleString()}</td>
-      <td class="td-link"><a href="${v.url}" target="_blank" rel="noopener">▶ 보기</a></td>
-    </tr>`;
-  }).join('');
+/* ── 테이블 시리즈 펼치기/접기 ── */
+function toggleTableSeries(sid, count) {
+  const btn = document.getElementById('btn-' + sid);
+  let allHidden = true;
+  for (let i = 0; i < count; i++) {
+    const row = document.getElementById(`ep-${sid}-${i}`);
+    if (row && row.style.display !== 'none') { allHidden = false; break; }
+  }
+  for (let i = 0; i < count; i++) {
+    const row = document.getElementById(`ep-${sid}-${i}`);
+    if (row) row.style.display = allHidden ? '' : 'none';
+  }
+  if (btn) btn.textContent = allHidden ? '▲ 접기' : '▼ 펼치기';
 }
 
 function renderPagination() {
-  const total = Math.ceil(filtered.length / perPage);
+  const total = Math.ceil((groupedFiltered.length || filtered.length) / perPage);
   const bar = document.getElementById('paginationBar');
   if (total <= 1) { bar.innerHTML = ''; return; }
 
@@ -678,7 +763,7 @@ function pageRange(cur, total, max) {
 }
 
 function goPage(p) {
-  const total = Math.ceil(filtered.length / perPage);
+  const total = Math.ceil((groupedFiltered.length || filtered.length) / perPage);
   if (p < 1 || p > total) return;
   currentPage = p;
   renderPage();

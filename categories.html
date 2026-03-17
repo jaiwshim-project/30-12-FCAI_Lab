@@ -275,18 +275,24 @@ function renderSubPills() {
 
 /* ─── 영상 그리드 렌더링 ────────────────────────────────── */
 function renderVideos() {
-  var grid  = document.getElementById('videoGrid');
-  var info  = document.getElementById('resultInfo');
+  var grid   = document.getElementById('videoGrid');
+  var info   = document.getElementById('resultInfo');
   var pgWrap = document.getElementById('paginationWrap');
   if (!grid) return;
 
   var filtered = getFilteredVideos();
-  var total = filtered.length;
+  /* 시리즈 그룹핑 — 같은 제목 시리즈를 하나로 묶기 */
+  var grouped = groupVideosBySeries(filtered);
+  /* 그룹핑 후 재정렬 */
+  var fn = SORT_FNS[state.sort] || SORT_FNS.latest;
+  grouped.sort(fn);
+
+  var total = grouped.length;
   var totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   if (state.page > totalPages) state.page = totalPages;
 
   var start = (state.page - 1) * PAGE_SIZE;
-  var page  = filtered.slice(start, start + PAGE_SIZE);
+  var page  = grouped.slice(start, start + PAGE_SIZE);
 
   /* 결과 정보 */
   var label = 'all';
@@ -297,10 +303,14 @@ function renderVideos() {
     var main = getMainById(state.mainId);
     label = main ? main.icon + ' ' + main.name : state.mainId;
   }
+  /* 원본 영상 수 vs 그룹 수 표시 */
+  var origCount = filtered.length;
+  var seriesCount = grouped.filter(function(v){ return v._isSeries; }).length;
   if (info) {
     info.innerHTML = (label !== 'all' ? '<strong>' + label + '</strong> · ' : '') +
-                     '<strong>' + total.toLocaleString() + '</strong>개 강의 · ' +
-                     state.page + ' / ' + totalPages + ' 페이지';
+                     '<strong>' + origCount.toLocaleString() + '</strong>개 강의' +
+                     (seriesCount > 0 ? ' (<strong>' + seriesCount + '</strong>개 시리즈 포함)' : '') +
+                     ' · ' + state.page + ' / ' + totalPages + ' 페이지';
   }
 
   if (!page.length) {
@@ -309,7 +319,9 @@ function renderVideos() {
     return;
   }
 
-  grid.innerHTML = page.map(function(v){ return renderVideoCard(v); }).join('');
+  grid.innerHTML = page.map(function(v) {
+    return v._isSeries ? renderSeriesCard(v) : renderVideoCard(v);
+  }).join('');
 
   if (pgWrap) {
     pgWrap.innerHTML = renderPagination(state.page, totalPages, function(p) {

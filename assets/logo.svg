@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 80" width="340" height="80">
+  <defs>
+    <style>
+      .logo-text { font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; }
+    </style>
+  </defs>
+
+  <!-- 전구 외곽 -->
+  <g transform="translate(8, 4)">
+    <!-- 전구 본체 -->
+    <ellipse cx="32" cy="28" rx="20" ry="22" fill="white" stroke="#222" stroke-width="2.5"/>
+    <!-- 전구 하단 소켓 -->
+    <rect x="24" y="48" width="16" height="5" rx="1" fill="white" stroke="#222" stroke-width="2"/>
+    <rect x="25" y="53" width="14" height="4" rx="1" fill="white" stroke="#222" stroke-width="2"/>
+    <rect x="26" y="57" width="12" height="3" rx="2" fill="white" stroke="#222" stroke-width="2"/>
+    <!-- 전구 빛줄기 -->
+    <line x1="32" y1="1" x2="32" y2="7" stroke="#222" stroke-width="2" stroke-linecap="round"/>
+    <line x1="7" y1="10" x2="11" y2="14" stroke="#222" stroke-width="2" stroke-linecap="round"/>
+    <line x1="57" y1="10" x2="53" y2="14" stroke="#222" stroke-width="2" stroke-linecap="round"/>
+    <line x1="1" y1="28" x2="7" y2="28" stroke="#222" stroke-width="2" stroke-linecap="round"/>
+    <line x1="63" y1="28" x2="57" y2="28" stroke="#222" stroke-width="2" stroke-linecap="round"/>
+    <line x1="7" y1="46" x2="11" y2="42" stroke="#222" stroke-width="2" stroke-linecap="round"/>
+    <line x1="57" y1="46" x2="53" y2="42" stroke="#222" stroke-width="2" stroke-linecap="round"/>
+    <!-- 빨간 원형 배경 (플레이버튼) -->
+    <circle cx="32" cy="28" r="14" fill="#CC0000"/>
+    <!-- 플레이 삼각형 -->
+    <polygon points="27,21 27,35 41,28" fill="white"/>
+  </g>
+
+  <!-- 구분선 -->
+  <line x1="80" y1="8" x2="80" y2="68" stroke="#ddd" stroke-width="1"/>
+
+  <!-- 미래역량 텍스트 (검정) -->
+  <text x="90" y="42" class="logo-text" font-size="28" font-weight="900" fill="#111" letter-spacing="-0.5">미래역량</text>
+
+  <!-- Ai 텍스트 (빨강) -->
+  <text x="198" y="42" class="logo-text" font-size="28" font-weight="900" fill="#CC0000">Ai</text>
+
+  <!-- 연구소 텍스트 (검정) -->
+  <text x="228" y="42" class="logo-text" font-size="28" font-weight="900" fill="#111">연구소</text>
+
+  <!-- 하단 구분선 -->
+  <line x1="90" y1="48" x2="330" y2="48" stroke="#888" stroke-width="1"/>
+
+  <!-- 서브타이틀 -->
+  <text x="90" y="64" font-family="Arial, sans-serif" font-size="12" fill="#555" letter-spacing="0.3">Salary+0, Job Interview+1</text>
+</svg>

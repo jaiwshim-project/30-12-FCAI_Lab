@@ -244,6 +244,93 @@ function getCounts() {
   return counts;
 }
 
+/* ── 시리즈 감지 및 그룹핑 ──────────────────────────────── */
+
+/**
+ * 제목에서 시리즈 정보 추출
+ * 반환: { base: '시리즈명', num: 에피소드번호 } 또는 null
+ */
+function extractSeriesInfo(title) {
+  var t = (title || '').trim();
+  var patterns = [
+    // "1  제목", "01. 제목", "1강 제목" — 맨 앞 번호
+    [/^(\d+)\s*[\.강화편]?\s{1,3}(.{2,})$/, true],
+    // "제목 1강", "제목 1화", "제목 1편", "제목 1부"
+    [/^(.{2,}?)\s+(\d+)\s*[강화편부회차시절]$/, false],
+    // "제목 - 1", "제목 – 01"
+    [/^(.{2,}?)\s*[-–]\s*(\d+)$/, false],
+    // "제목 (1)", "제목 [1]"
+    [/^(.{2,}?)\s*[\(\[]\s*(\d+)\s*[\)\]]$/, false],
+    // "제목 1" — 끝 숫자 (1~3자리)
+    [/^(.{3,}?)\s+(\d{1,3})$/, false],
+  ];
+  for (var i = 0; i < patterns.length; i++) {
+    var m = t.match(patterns[i][0]);
+    if (!m) continue;
+    var leadingNum = patterns[i][1];
+    var num  = parseInt(leadingNum ? m[1] : m[2]);
+    var base = (leadingNum ? m[2] : m[1]).trim();
+    if (num >= 1 && num <= 999 && base.length >= 2) {
+      return { base: base, num: num };
+    }
+  }
+  return null;
+}
+
+/**
+ * 영상 배열을 시리즈 단위로 그룹핑
+ * 2개 이상 같은 base가 있으면 series 객체로 합침
+ */
+function groupVideosBySeries(videos) {
+  var map = {};
+  var noSeries = [];
+
+  videos.forEach(function(v) {
+    var info = extractSeriesInfo(v.title);
+    if (info) {
+      if (!map[info.base]) map[info.base] = [];
+      map[info.base].push(Object.assign({}, v, { _episodeNum: info.num }));
+    } else {
+      noSeries.push(v);
+    }
+  });
+
+  var result = [];
+  Object.keys(map).forEach(function(base) {
+    var eps = map[base];
+    if (eps.length >= 2) {
+      eps.sort(function(a, b) { return a._episodeNum - b._episodeNum; });
+      var totalViews = eps.reduce(function(s, e) { return s + (e.view_count || e.views || 0); }, 0);
+      var latestDate = eps.reduce(function(d, e) {
+        var ed = e.published_at || e.date || '';
+        return ed > d ? ed : d;
+      }, '');
+      var sid = 'sr-' + base.replace(/[^a-zA-Z0-9가-힣]/g, '').substring(0, 16);
+      result.push({
+        _isSeries  : true,
+        _seriesId  : sid,
+        title      : base,
+        episodes   : eps,
+        id         : eps[0].video_id || eps[0].id,
+        video_id   : eps[0].video_id || eps[0].id,
+        thumbnail_url: eps[0].thumbnail_url
+                    || ('https://img.youtube.com/vi/' + (eps[0].video_id || eps[0].id) + '/mqdefault.jpg'),
+        mainId     : eps[0].mainId,
+        subId      : eps[0].subId,
+        category_id: eps[0].category_id,
+        view_count : totalViews,
+        views      : totalViews,
+        published_at: latestDate,
+        date       : latestDate,
+      });
+    } else {
+      noSeries.push(eps[0]);
+    }
+  });
+
+  return result.concat(noSeries);
+}
+
 /* ── 전역 노출 ───────────────────────────────────────────── */
 if (typeof window !== 'undefined') {
   window.TAXONOMY             = TAXONOMY;
@@ -253,6 +340,8 @@ if (typeof window !== 'undefined') {
   window.getCounts            = getCounts;
   window.getMainById          = getMainById;
   window.getSubById           = getSubById;
+  window.extractSeriesInfo    = extractSeriesInfo;
+  window.groupVideosBySeries  = groupVideosBySeries;
 }
 
 if (typeof module !== 'undefined' && module.exports) {
