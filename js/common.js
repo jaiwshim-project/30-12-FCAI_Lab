@@ -383,6 +383,21 @@ function formatDuration(seconds) {
   return `${m}:${String(sec).padStart(2, '0')}`;
 }
 
+/**
+ * ISO 8601 duration → "M:SS" or "H:MM:SS" 문자열
+ * e.g. "PT5M30S" → "5:30",  "PT1H2M3S" → "1:02:03"
+ */
+function parseIsoDuration(iso) {
+  if (!iso) return '';
+  const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!m) return '';
+  const h = parseInt(m[1] || 0);
+  const min = parseInt(m[2] || 0);
+  const sec = parseInt(m[3] || 0);
+  const total = h * 3600 + min * 60 + sec;
+  return formatDuration(total);
+}
+
 /* ────────────────────────────────────────────────────────────
    4. 토스트 알림
    ──────────────────────────────────────────────────────────── */
@@ -572,6 +587,9 @@ function renderVideoCard(video, options = {}) {
   const starsHTML = '★'.repeat(fullStars) + (halfStar ? '½' : '') + '☆'.repeat(emptyStars);
   const ratingCount = views > 0 ? '(' + formatNumber(Math.floor(views * 0.12 + 1)) + ')' : '(0)';
 
+  const durStr = parseIsoDuration(video.duration);
+  const durBadge = durStr ? `<span class="video-card-duration">${durStr}</span>` : '';
+
   return `
     <article class="video-card${horizontal}" onclick="window.location.href='video.html?id=${video.video_id}'" role="link" tabindex="0"
       onkeydown="if(event.key==='Enter')window.location.href='video.html?id=${video.video_id}'">
@@ -579,6 +597,7 @@ function renderVideoCard(video, options = {}) {
         <img src="${thumb}" alt="${escapeHtml(video.title)}" loading="lazy"
           onerror="this.src='https://i.ytimg.com/vi/${video.video_id}/hqdefault.jpg'">
         <div class="video-card-play"><div class="play-icon">▶</div></div>
+        ${durBadge}
         ${completedBadge}
       </div>
       <div class="video-card-body">
@@ -617,10 +636,13 @@ function renderSeriesCard(series) {
       || ('https://img.youtube.com/vi/' + (ep.video_id || ep.id) + '/mqdefault.jpg');
     var epUrl = ep.url || ('https://youtu.be/' + (ep.video_id || ep.id));
     var views = (ep.view_count || ep.views || 0).toLocaleString();
+    var epDur = parseIsoDuration(ep.duration);
+    var epDurHtml = epDur ? '<span class="ep-duration">⏱ ' + epDur + '</span>' : '';
     return '<a class="episode-item" href="' + epUrl + '" target="_blank" rel="noopener">'
       + '<span class="ep-num">' + ep._episodeNum + '강</span>'
       + '<img class="ep-thumb" src="' + epThumb + '" loading="lazy" onerror="this.style.display=\'none\'">'
       + '<span class="ep-title">' + escapeHtml(ep.title) + '</span>'
+      + epDurHtml
       + '<span class="ep-views">👁 ' + views + '</span>'
       + '</a>';
   }).join('');
@@ -857,7 +879,7 @@ if (typeof window !== 'undefined') {
     // auth
     getCurrentUser, signOut, requireAuth,
     // 포맷
-    formatNumber, formatDate, formatDuration,
+    formatNumber, formatDate, formatDuration, parseIsoDuration,
     // 토스트
     showToast,
     // URL

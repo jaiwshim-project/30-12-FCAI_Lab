@@ -355,6 +355,21 @@
 }
 .video-card:hover .play-icon { opacity: 1; transform: scale(1); }
 
+/* 재생 시간 배지 (썸네일 우하단) */
+.video-card-duration {
+  position: absolute;
+  bottom: var(--space-2);
+  right: var(--space-2);
+  background: rgba(0, 0, 0, 0.78);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 5px;
+  border-radius: 3px;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+}
+
 /* 시청 완료 배지 */
 .video-card-completed {
   position: absolute;
@@ -1417,6 +1432,12 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   color: #0F172A;
+}
+.ep-duration {
+  flex-shrink: 0;
+  font-size: 0.73rem;
+  color: #475569;
+  white-space: nowrap;
 }
 .ep-views {
   flex-shrink: 0;
