@@ -245,7 +245,7 @@
 <body>
 
 <script src="js/config.js"></script>
-<script src="js/videos-data.js"></script>
+<script src="videos-data.js"></script>
 <script src="js/categories-data.js"></script>
 <script src="js/common.js"></script>
 <script>injectNav('home');</script>
@@ -283,8 +283,15 @@
         <div class="stats-item">
           <div class="stats-item-icon">🎬</div>
           <div>
-            <div class="stats-item-num" id="statTotal">2,327</div>
-            <div class="stats-item-label">총 강의 수</div>
+            <div class="stats-item-num" id="statSeries">–</div>
+            <div class="stats-item-label">총 강의수</div>
+          </div>
+        </div>
+        <div class="stats-item">
+          <div class="stats-item-icon">📹</div>
+          <div>
+            <div class="stats-item-num" id="statTotal">–</div>
+            <div class="stats-item-label">총 영상수</div>
           </div>
         </div>
         <div class="stats-item">
@@ -430,11 +437,13 @@ function renderCatBrowse() {
   if (!grid || typeof TAXONOMY === 'undefined') return;
   var counts = (typeof getCounts === 'function') ? getCounts() : {};
   grid.innerHTML = TAXONOMY.map(function(main) {
-    var cnt = (counts[main.id] || {})._total || 0;
+    var mc       = counts[main.id] || {};
+    var series   = mc._seriesTotal || 0;
+    var total    = mc._total || 0;
     return '<a href="categories.html?main=' + main.id + '" class="cat-browse-card">' +
       '<div class="cat-browse-icon">' + main.icon + '</div>' +
       '<div class="cat-browse-name">' + main.name + '</div>' +
-      '<div class="cat-browse-count">' + cnt + '개 강의</div>' +
+      '<div class="cat-browse-count">' + series + '강의 <span style="color:#94A3B8;font-size:0.78em;">(' + total + '영상)</span></div>' +
       '</a>';
   }).join('');
 }
@@ -529,6 +538,13 @@ document.addEventListener('DOMContentLoaded', function() {
       if (q) location.href = 'search.html?q=' + encodeURIComponent(q);
     }
   });
+
+  /* ── 통계 카드 동적 계산 ── */
+  if (typeof VIDEOS_DATA !== 'undefined' && typeof groupVideosBySeries === 'function') {
+    var seriesCount = groupVideosBySeries(VIDEOS_DATA).length;
+    document.getElementById('statSeries').textContent = seriesCount.toLocaleString();
+    document.getElementById('statTotal').textContent  = VIDEOS_DATA.length.toLocaleString();
+  }
 
   renderCatBrowse();
   renderLatestCarousel();
