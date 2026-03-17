@@ -208,11 +208,15 @@ function renderFooter() {
   <footer class="site-footer">
     <div class="footer-inner">
       <div>
-        <a href="index.html" class="nav-logo" style="margin-bottom:12px;display:inline-flex;">
-          <div class="nav-logo-icon">🎓</div>
-          <div>
-            <div class="nav-logo-text">미래역량AI연구소</div>
-            <div class="nav-logo-sub">AI 학습 플랫폼</div>
+        <a href="index.html" class="nav-logo" style="margin-bottom:12px;display:inline-block;padding:0;">
+          <img src="assets/logo.png" alt="미래역량AI연구소" style="height:44px;width:auto;display:block;"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+          <div style="display:none;align-items:center;gap:8px;">
+            <div class="nav-logo-icon">🎓</div>
+            <div>
+              <div class="nav-logo-text">미래역량AI연구소</div>
+              <div class="nav-logo-sub">AI 학습 플랫폼</div>
+            </div>
           </div>
         </a>
         <p class="footer-brand-desc">2,327개의 AI 강의로 미래역량을 키우는 학습 플랫폼입니다. ChatGPT, Claude, 프롬프트 엔지니어링 등 실전 AI 역량을 키우세요.</p>
