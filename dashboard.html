@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>학습 대시보드 — 미래역량AI연구소</title>
+  <link rel="stylesheet" href="css/main.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <style>
+    body, .page-wrapper { background: #F8FAFF; }
+    .card {
+      background: #FFFFFF;
+      border: 1.5px solid rgba(59,130,246,0.18);
+      border-radius: 16px;
+    }
+    .stat-card {
+      background: #FFFFFF !important;
+      border: 1.5px solid rgba(59,130,246,0.18) !important;
+      position: relative;
+      overflow: hidden;
+    }
+    @media (max-width: 639px) {
+      .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+      .content-with-sidebar { grid-template-columns: 1fr !important; }
+      .section { padding-block: 32px !important; }
+    }
+  </style>
+</head>
+<body>
+
+<script src="js/config.js"></script>
+<script src="js/categories-data.js"></script>
+<script src="js/common.js"></script>
+<script>
+  injectNav('dashboard');
+  // 인증 확인 — 미로그인 시 로그인 페이지로
+  // requireAuth()는 DOMContentLoaded 후 체크
+</script>
+
+<div class="page-wrapper">
+  <div class="container" style="padding-top:40px;padding-bottom:80px;">
+
+    <!-- 페이지 헤더 -->
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-bottom:32px;">
+      <div>
+        <h1 style="font-size:clamp(1.5rem,4vw,2rem);font-weight:800;margin-bottom:4px;">
+          📊 학습 대시보드
+        </h1>
+        <p style="color:var(--text-secondary);font-size:0.9rem;" id="dashWelcome">환영합니다!</p>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="signOut()">로그아웃</button>
+    </div>
+
+    <!-- 통계 카드 -->
+    <div class="stats-grid" style="margin-bottom:40px;" id="statsGrid">
+      <!-- JS 렌더링 -->
+    </div>
+
+    <!-- 학습 진도 바 (카테고리별) -->
+    <div class="card" style="margin-bottom:32px;">
+      <h2 style="font-size:1.05rem;font-weight:700;margin-bottom:20px;">📈 카테고리별 학습 진도</h2>
+      <div id="categoryProgress" style="display:flex;flex-direction:column;gap:16px;">
+        <!-- JS 렌더링 -->
+      </div>
+    </div>
+
+    <div style="display:grid;gap:24px;grid-template-columns:1fr;" id="mainGrid">
+
+      <!-- 최근 시청 영상 -->
+      <div>
+        <div class="section-header" style="margin-bottom:20px;">
+          <h2 style="font-size:1.05rem;font-weight:700;">🕐 최근 시청</h2>
+          <a href="categories.html" class="view-all">더보기 →</a>
+        </div>
+        <div id="recentGrid" style="display:flex;flex-direction:column;gap:10px;">
+          <!-- JS 렌더링 -->
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 추천 다음 영상 -->
+    <div style="margin-top:40px;">
+      <div class="section-header" style="margin-bottom:20px;">
+        <h2 style="font-size:1.05rem;font-weight:700;">✨ 추천 다음 강의</h2>
+        <a href="categories.html" class="view-all">전체보기 →</a>
+      </div>
+      <div class="video-grid" id="recommendGrid">
+        <!-- JS 렌더링 -->
+      </div>
+    </div>
+
+    <!-- 학습 스트릭 캘린더 -->
+    <div class="card" style="margin-top:40px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+        <h2 style="font-size:1.05rem;font-weight:700;">🔥 학습 스트릭</h2>
+        <div style="display:flex;align-items:center;gap:16px;font-size:0.8rem;color:var(--text-muted);">
+          <span>적음</span>
+          <div style="display:flex;gap:3px;">
+            <div style="width:12px;height:12px;border-radius:2px;background:var(--bg-surface-3);"></div>
+            <div style="width:12px;height:12px;border-radius:2px;" class="streak-cell level-1"></div>
+            <div style="width:12px;height:12px;border-radius:2px;" class="streak-cell level-2"></div>
+            <div style="width:12px;height:12px;border-radius:2px;" class="streak-cell level-3"></div>
+            <div style="width:12px;height:12px;border-radius:2px;" class="streak-cell level-4"></div>
+          </div>
+          <span>많음</span>
+        </div>
+      </div>
+      <div style="overflow-x:auto;">
+        <div id="streakCalendar" style="min-width:480px;"></div>
+      </div>
+      <div style="margin-top:12px;font-size:0.8rem;color:var(--text-muted);" id="streakInfo"></div>
+    </div>
+
+  </div>
+</div>
+
+<div id="siteFooter"></div>
+<script>injectFooter();</script>
+
+<div id="toast-container"></div>
+
+<script src="js/supabase.js" onerror="console.warn('supabase.js 없음')"></script>
+<script>
+// ── 인증 체크 ──
+document.addEventListener('DOMContentLoaded', () => {
+  const user = getCurrentUser();
+  if (!user) {
+    // 게스트 모드: 데모 데이터 표시
+    localStorage.setItem('fc_user', JSON.stringify({ email: 'demo@example.com', name: '게스트', demo: true }));
+  }
+  initDashboard();
+});
+
+async function initDashboard() {
+  const user = getCurrentUser();
+  if (!user) return;
+
+  // 환영 메시지
+  const name = user.name || user.email?.split('@')[0] || '학습자';
+  document.getElementById('dashWelcome').textContent = `${name}님, 오늘도 학습하세요! 🚀`;
+
+  // 데이터 로드
+  const history   = getWatchHistory();
+  const completed = getCompleted();
+
+  renderStats(history, completed);
+  renderCategoryProgress(completed);
+  await renderRecentVideos(history);
+  renderRecommend(history, completed);
+  renderStreakCalendar();
+}
+
+// ── 통계 카드 ──
+function renderStats(history, completed) {
+  const streak = parseInt(localStorage.getItem('fc_streak') || '1', 10);
+  const completionRate = history.length > 0 ? Math.round((completed.length / history.length) * 100) : 0;
+
+  document.getElementById('statsGrid').innerHTML = `
+    <div class="stat-card">
+      <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#1D4ED8,#7C3AED);"></div>
+      <div class="stat-card-icon" style="background:rgba(30,64,175,0.1);">👁</div>
+      <div class="stat-card-value" style="color:#0F172A;">${history.length}</div>
+      <div class="stat-card-label" style="color:#64748B;">시청한 강의</div>
+      <div class="stat-card-change">↑ 총 누적</div>
+    </div>
+    <div class="stat-card">
+      <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#059669,#1D4ED8);"></div>
+      <div class="stat-card-icon" style="background:rgba(5,150,105,0.1);">✅</div>
+      <div class="stat-card-value" style="color:#0F172A;">${completed.length}</div>
+      <div class="stat-card-label" style="color:#64748B;">완료한 강의</div>
+      <div class="stat-card-change">${completionRate}% 완료율</div>
+    </div>
+    <div class="stat-card">
+      <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#EA580C,#F59E0B);"></div>
+      <div class="stat-card-icon" style="background:rgba(234,88,12,0.1);">🔥</div>
+      <div class="stat-card-value" style="color:#0F172A;">${streak}</div>
+      <div class="stat-card-label" style="color:#64748B;">연속 학습일</div>
+      <div class="stat-card-change">최고 기록</div>
+    </div>
+    <div class="stat-card">
+      <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#7C3AED,#EC4899);"></div>
+      <div class="stat-card-icon" style="background:rgba(124,58,237,0.1);">📚</div>
+      <div class="stat-card-value" style="color:#0F172A;">${_getLearnedCategories(history).length}</div>
+      <div class="stat-card-label" style="color:#64748B;">학습한 카테고리</div>
+      <div class="stat-card-change">총 10개 중</div>
+    </div>
+  `;
+}
+
+function _getLearnedCategories(history) {
+  const cats = new Set();
+  history.forEach(vid => {
+    const v = DUMMY_VIDEOS.find(v => v.video_id === vid);
+    if (v?.category_id) cats.add(v.category_id);
+  });
+  return [...cats];
+}
+
+// ── 카테고리별 진도 ──
+function renderCategoryProgress(completed) {
+  const el = document.getElementById('categoryProgress');
+  if (!el) return;
+
+  // 더미: 카테고리별 완료 수 시뮬레이션
+  const catData = CATEGORIES.slice(0, 6).map((cat, i) => ({
+    ...cat,
+    total: DUMMY_CATEGORY_COUNTS[cat.id] || 100,
+    done:  Math.floor(Math.random() * 30),
+  }));
+
+  el.innerHTML = catData.map(c => {
+    const pct = Math.min(100, Math.round((c.done / c.total) * 100));
+    return `
+      <div>
+        <div class="progress-bar-label">
+          <span>${c.icon} ${c.name}</span>
+          <span>${c.done}/${c.total} (${pct}%)</span>
+        </div>
+        <div class="progress-bar-track" style="margin-top:6px;">
+          <div class="progress-bar-fill" style="width:${pct}%;"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ── 최근 시청 영상 ──
+async function renderRecentVideos(history) {
+  const el = document.getElementById('recentGrid');
+  if (!el) return;
+
+  if (!history.length) {
+    el.innerHTML = `
+      <div style="text-align:center;padding:32px;color:var(--text-muted);font-size:0.875rem;">
+        아직 시청한 강의가 없습니다. <a href="categories.html" style="color:var(--color-primary-light);">강의 보러가기</a>
+      </div>
+    `;
+    return;
+  }
+
+  let videos = [];
+  const recentIds = history.slice(0, 8);
+
+  if (window.supabaseClient) {
+    try {
+      const { data } = await window.supabaseClient
+        .from('videos').select('*').in('video_id', recentIds);
+      if (data) videos = recentIds.map(id => data.find(v => v.video_id === id)).filter(Boolean);
+    } catch(e) {}
+  }
+  if (!videos.length) {
+    videos = recentIds
+      .map(id => DUMMY_VIDEOS.find(v => v.video_id === id) || DUMMY_VIDEOS[Math.floor(Math.random() * DUMMY_VIDEOS.length)])
+      .filter(Boolean);
+  }
+
+  el.innerHTML = videos.map(v =>
+    renderVideoCard(v, { horizontal: true, completed: isCompleted(v.video_id) })
+  ).join('');
+}
+
+// ── 추천 영상 ──
+function renderRecommend(history, completed) {
+  const el = document.getElementById('recommendGrid');
+  if (!el) return;
+
+  // 시청 안 한 영상 중 추천
+  const notWatched = DUMMY_VIDEOS.filter(v => !history.includes(v.video_id));
+  const recommended = notWatched.length >= 4
+    ? notWatched.sort(() => Math.random() - 0.5).slice(0, 4)
+    : [...DUMMY_VIDEOS].sort(() => Math.random() - 0.5).slice(0, 4);
+
+  el.innerHTML = recommended.map(v => renderVideoCard(v)).join('');
+}
+
+// ── 스트릭 캘린더 ──
+function renderStreakCalendar() {
+  const el = document.getElementById('streakCalendar');
+  if (!el) return;
+
+  const WEEKS = 16;
+  const today = new Date();
+  const cells = [];
+
+  for (let w = WEEKS - 1; w >= 0; w--) {
+    for (let d = 6; d >= 0; d--) {
+      const date = new Date(today);
+      date.setDate(today.getDate() - (w * 7 + d));
+      // 더미: 랜덤 학습 기록
+      const hasActivity = Math.random() > 0.6;
+      const level = hasActivity ? Math.ceil(Math.random() * 4) : 0;
+      const isToday = w === 0 && d === 0;
+
+      cells.push({
+        date: date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }),
+        level,
+        isToday,
+      });
+    }
+  }
+
+  // 주별로 그리기
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(${WEEKS},1fr);gap:3px;">
+      ${cells.map(c => `
+        <div class="streak-cell level-${c.level}${c.isToday ? '" style="outline:2px solid var(--color-primary-light)' : ''}"
+          title="${c.date}" style="aspect-ratio:1;border-radius:2px;"></div>
+      `).join('')}
+    </div>
+  `;
+
+  const totalActive = cells.filter(c => c.level > 0).length;
+  const currentStreak = parseInt(localStorage.getItem('fc_streak') || '1', 10);
+  document.getElementById('streakInfo').textContent =
+    `최근 ${WEEKS}주 중 ${totalActive}일 학습 · 현재 연속 ${currentStreak}일`;
+}
+</script>
+</body>
+</html>

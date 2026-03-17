@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>카테고리별 강의 — 미래역량AI연구소</title>
+  <meta name="description" content="AI·디지털, 비즈니스, 소통, 자기계발, 교육, 예술·문화, 신앙·영성 등 28개 세부 카테고리" />
+  <link rel="stylesheet" href="css/main.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <style>
+    /* ── 대분류 탭 ── */
+    .main-tabs-wrap {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      padding: 4px 0 12px;
+    }
+    .main-tabs-wrap::-webkit-scrollbar { display: none; }
+    .main-tabs {
+      display: flex;
+      gap: 8px;
+      min-width: max-content;
+    }
+    .main-tab {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 18px;
+      border-radius: 40px;
+      border: 1.5px solid rgba(59,130,246,0.2);
+      background: #fff;
+      cursor: pointer;
+      white-space: nowrap;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      transition: all 0.18s;
+      line-height: 1;
+    }
+    .main-tab:hover {
+      border-color: rgba(59,130,246,0.45);
+      background: #F0F4FF;
+      color: #1D4ED8;
+    }
+    .main-tab.active {
+      background: linear-gradient(135deg, #1D4ED8, #7C3AED);
+      border-color: transparent;
+      color: #fff;
+      box-shadow: 0 3px 12px rgba(29,78,216,0.3);
+    }
+    .main-tab .tab-count {
+      font-size: 0.72rem;
+      font-weight: 700;
+      background: rgba(255,255,255,0.22);
+      padding: 1px 7px;
+      border-radius: 20px;
+    }
+    .main-tab:not(.active) .tab-count {
+      background: rgba(59,130,246,0.12);
+      color: #3B82F6;
+    }
+
+    /* ── 중분류 필 바 ── */
+    .sub-pills-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 14px 0 8px;
+      border-top: 1px solid rgba(59,130,246,0.1);
+      margin-top: 4px;
+    }
+    .sub-pills-bar .sub-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      white-space: nowrap;
+      padding-right: 4px;
+    }
+
+    /* ── 컨트롤 바 ── */
+    .control-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 0;
+      flex-wrap: wrap;
+      border-top: 1px solid rgba(59,130,246,0.1);
+      margin-top: 8px;
+    }
+    .result-info {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .result-info strong { color: var(--text-primary); }
+    @media (max-width: 480px) {
+      .main-tab { padding: 8px 14px; font-size: 0.8rem; }
+      .control-bar { flex-direction: column; align-items: flex-start; gap: 8px; }
+    }
+  </style>
+</head>
+<body>
+
+<script src="js/config.js"></script>
+<script src="js/videos-data.js"></script>
+<script src="js/categories-data.js"></script>
+<script src="js/common.js"></script>
+<script>injectNav('categories');</script>
+
+<div class="page-wrapper">
+  <div class="container" style="padding-top:32px;padding-bottom:80px;">
+
+    <!-- 페이지 헤더 -->
+    <div style="margin-bottom:28px;padding:28px 32px;background:linear-gradient(135deg,#EEF2FF 0%,#E0E7FF 100%);border-radius:20px;border:1.5px solid rgba(59,130,246,0.18);">
+      <h1 style="font-size:clamp(1.4rem,4vw,2rem);font-weight:800;margin-bottom:6px;">
+        📂 강의 카테고리
+      </h1>
+      <div style="width:44px;height:3px;background:linear-gradient(90deg,#1D4ED8,#7C3AED);border-radius:2px;margin:8px 0 10px;"></div>
+      <p style="color:var(--text-secondary);font-size:0.9rem;">
+        대분류 7개 · 중분류 28개 — 원하는 주제를 골라 집중 학습하세요
+      </p>
+      <div id="headerCount" style="margin-top:10px;font-size:0.82rem;color:#64748B;"></div>
+    </div>
+
+    <!-- ① 대분류 탭 -->
+    <div class="main-tabs-wrap">
+      <div class="main-tabs" id="mainTabs"></div>
+    </div>
+
+    <!-- ② 중분류 필 (대분류 선택 시) -->
+    <div class="sub-pills-bar" id="subPillsBar" style="display:none;"></div>
+
+    <!-- ③ 컨트롤 바 -->
+    <div class="control-bar">
+      <div class="result-info" id="resultInfo">로딩 중…</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <label for="sortSelect" style="font-size:0.8rem;color:var(--text-muted);">정렬</label>
+        <select class="sort-select" id="sortSelect">
+          <option value="latest">최신순</option>
+          <option value="popular">조회수순</option>
+          <option value="title">제목순</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- ④ 영상 그리드 -->
+    <div class="video-grid" id="videoGrid"></div>
+
+    <!-- ⑤ 페이지네이션 -->
+    <div id="paginationWrap"></div>
+
+  </div>
+</div>
+
+<div id="siteFooter"></div>
+<script>injectFooter();</script>
+<div id="toast-container"></div>
+
+<script>
+/* ─── 상태 ─────────────────────────────────────────────── */
+var state = {
+  mainId : getUrlParam('main', 'all'),
+  subId  : getUrlParam('sub',  'all'),
+  sort   : getUrlParam('sort', 'latest'),
+  page   : parseInt(getUrlParam('page', '1'), 10) || 1,
+};
+var PAGE_SIZE = 20;
+
+/* ─── 정렬 함수 ─────────────────────────────────────────── */
+var SORT_FNS = {
+  latest : function(a,b){ return new Date(b.published_at) - new Date(a.published_at); },
+  popular: function(a,b){ return b.view_count - a.view_count; },
+  title  : function(a,b){ return (a.title||'').localeCompare(b.title||'', 'ko'); },
+};
+
+/* ─── 필터링 ─────────────────────────────────────────────── */
+function getFilteredVideos() {
+  var all = getCategorizedVideos();
+  if (state.mainId !== 'all') {
+    all = all.filter(function(v){ return v.mainId === state.mainId; });
+  }
+  if (state.subId !== 'all') {
+    all = all.filter(function(v){ return v.subId === state.subId; });
+  }
+  var fn = SORT_FNS[state.sort] || SORT_FNS.latest;
+  return all.slice().sort(fn);
+}
+
+/* ─── 대분류 탭 렌더링 ──────────────────────────────────── */
+function renderMainTabs() {
+  var counts = getCounts();
+  var el = document.getElementById('mainTabs');
+  if (!el) return;
+
+  var total = counts._total || 0;
+
+  /* 헤더 카운트 */
+  var hc = document.getElementById('headerCount');
+  if (hc) hc.textContent = '총 ' + total.toLocaleString() + '개 강의';
+
+  var html = '<button class="main-tab' + (state.mainId==='all'?' active':'') +
+             '" data-main="all">📋 전체 <span class="tab-count">' + total + '</span></button>';
+
+  TAXONOMY.forEach(function(main) {
+    var cnt = (counts[main.id] || {})._total || 0;
+    html += '<button class="main-tab' + (state.mainId===main.id?' active':'') +
+            '" data-main="' + main.id + '">' +
+            main.icon + ' ' + main.name +
+            ' <span class="tab-count">' + cnt + '</span></button>';
+  });
+
+  /* 기타 */
+  var otherCnt = (counts.other || {})._total || 0;
+  if (otherCnt > 0) {
+    html += '<button class="main-tab' + (state.mainId==='other'?' active':'') +
+            '" data-main="other">📋 기타 <span class="tab-count">' + otherCnt + '</span></button>';
+  }
+
+  el.innerHTML = html;
+  el.querySelectorAll('.main-tab').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      state.mainId = btn.dataset.main;
+      state.subId  = 'all';
+      state.page   = 1;
+      syncUrl();
+      renderMainTabs();
+      renderSubPills();
+      renderVideos();
+    });
+  });
+}
+
+/* ─── 중분류 필 렌더링 ──────────────────────────────────── */
+function renderSubPills() {
+  var bar = document.getElementById('subPillsBar');
+  if (!bar) return;
+
+  if (state.mainId === 'all' || state.mainId === 'other') {
+    bar.style.display = 'none';
+    return;
+  }
+
+  var main = getMainById(state.mainId);
+  if (!main) { bar.style.display = 'none'; return; }
+
+  var counts = getCounts();
+  var mainCounts = counts[state.mainId] || { subs: {} };
+
+  var html = '<span class="sub-label">' + main.icon + ' ' + main.name + ' ›</span>';
+  html += '<button class="category-pill' + (state.subId==='all'?' active':'') + '" data-sub="all">' +
+          '전체 <span class="pill-count">' + (mainCounts._total||0) + '</span></button>';
+
+  main.subs.forEach(function(sub) {
+    var cnt = mainCounts.subs[sub.id] || 0;
+    html += '<button class="category-pill' + (state.subId===sub.id?' active':'') +
+            '" data-sub="' + sub.id + '">' +
+            sub.icon + ' ' + sub.name +
+            ' <span class="pill-count">' + cnt + '</span></button>';
+  });
+
+  bar.innerHTML = html;
+  bar.style.display = 'flex';
+
+  bar.querySelectorAll('.category-pill').forEach(function(pill) {
+    pill.addEventListener('click', function() {
+      state.subId = pill.dataset.sub;
+      state.page  = 1;
+      syncUrl();
+      renderSubPills();
+      renderVideos();
+    });
+  });
+}
+
+/* ─── 영상 그리드 렌더링 ────────────────────────────────── */
+function renderVideos() {
+  var grid  = document.getElementById('videoGrid');
+  var info  = document.getElementById('resultInfo');
+  var pgWrap = document.getElementById('paginationWrap');
+  if (!grid) return;
+
+  var filtered = getFilteredVideos();
+  var total = filtered.length;
+  var totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  if (state.page > totalPages) state.page = totalPages;
+
+  var start = (state.page - 1) * PAGE_SIZE;
+  var page  = filtered.slice(start, start + PAGE_SIZE);
+
+  /* 결과 정보 */
+  var label = 'all';
+  if (state.subId !== 'all') {
+    var sub = getSubById(state.subId);
+    label = sub ? sub.icon + ' ' + sub.name : state.subId;
+  } else if (state.mainId !== 'all') {
+    var main = getMainById(state.mainId);
+    label = main ? main.icon + ' ' + main.name : state.mainId;
+  }
+  if (info) {
+    info.innerHTML = (label !== 'all' ? '<strong>' + label + '</strong> · ' : '') +
+                     '<strong>' + total.toLocaleString() + '</strong>개 강의 · ' +
+                     state.page + ' / ' + totalPages + ' 페이지';
+  }
+
+  if (!page.length) {
+    renderEmptyState(grid, '🎬', '강의가 없습니다', '해당 카테고리에 강의가 없거나 준비 중입니다.');
+    if (pgWrap) pgWrap.innerHTML = '';
+    return;
+  }
+
+  grid.innerHTML = page.map(function(v){ return renderVideoCard(v); }).join('');
+
+  if (pgWrap) {
+    pgWrap.innerHTML = renderPagination(state.page, totalPages, function(p) {
+      state.page = p;
+      syncUrl();
+      renderVideos();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  }
+}
+
+/* ─── URL 동기화 ─────────────────────────────────────────── */
+function syncUrl() {
+  updateUrlParams({
+    main: state.mainId !== 'all' ? state.mainId : null,
+    sub : state.subId  !== 'all' ? state.subId  : null,
+    sort: state.sort   !== 'latest' ? state.sort : null,
+    page: state.page   >  1        ? state.page  : null,
+  });
+}
+
+/* ─── 정렬 이벤트 ─────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', function() {
+  var sortEl = document.getElementById('sortSelect');
+  if (sortEl) {
+    sortEl.value = state.sort;
+    sortEl.addEventListener('change', function() {
+      state.sort = this.value;
+      state.page = 1;
+      syncUrl();
+      renderVideos();
+    });
+  }
+
+  renderMainTabs();
+  renderSubPills();
+  renderVideos();
+});
+</script>
+</body>
+</html>

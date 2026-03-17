@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>강의 검색 — 미래역량AI연구소</title>
+  <meta name="description" content="2,327개 AI 강의를 검색하세요" />
+  <link rel="stylesheet" href="css/main.css" />
+  <link rel="stylesheet" href="css/components.css" />
+</head>
+<body>
+
+<script src="js/config.js"></script>
+<script src="js/categories-data.js"></script>
+<script src="js/common.js"></script>
+<script>injectNav('search');</script>
+
+<div class="page-wrapper">
+  <div class="container" style="padding-top:40px;padding-bottom:80px;">
+
+    <!-- 검색 입력 섹션 -->
+    <div style="text-align:center;max-width:680px;margin:0 auto 40px;padding:32px 24px;background:linear-gradient(135deg,#EEF2FF 0%,#F0F4FF 100%);border-radius:20px;border:1.5px solid rgba(59,130,246,0.15);">
+      <h1 style="font-size:clamp(1.5rem,4vw,2rem);font-weight:800;margin-bottom:16px;">
+        🔍 강의 검색
+      </h1>
+      <div class="search-bar search-bar-hero" id="mainSearchWrap">
+        <span class="search-bar-icon" style="left:20px;font-size:1.2rem;">🔍</span>
+        <input type="text" class="search-bar-input" id="searchInput"
+          placeholder="검색어를 입력하세요..." autocomplete="off" />
+        <button class="search-bar-btn" id="searchBtn">검색</button>
+        <div class="search-autocomplete" id="autocomplete"></div>
+      </div>
+
+      <!-- 인기 검색어 -->
+      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:16px;" id="trendingTags">
+        <span style="font-size:0.8rem;color:var(--text-muted);align-self:center;">🔥 인기:</span>
+        <button class="category-pill" onclick="doSearch('ChatGPT')">ChatGPT</button>
+        <button class="category-pill" onclick="doSearch('프롬프트')">프롬프트</button>
+        <button class="category-pill" onclick="doSearch('Claude')">Claude</button>
+        <button class="category-pill" onclick="doSearch('자동화')">자동화</button>
+        <button class="category-pill" onclick="doSearch('AI기초')">AI기초</button>
+        <button class="category-pill" onclick="doSearch('코딩')">코딩</button>
+      </div>
+    </div>
+
+    <!-- 검색 결과 영역 -->
+    <div id="resultsArea" style="display:none;">
+
+      <!-- 결과 헤더 -->
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px;background:#EEF2FF;border-radius:12px;padding:16px 20px;">
+        <div>
+          <h2 style="font-size:1.1rem;font-weight:700;" id="resultTitle">검색 결과</h2>
+          <div style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;" id="resultMeta"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <select class="sort-select" id="resultSort">
+            <option value="relevance">관련도순</option>
+            <option value="latest">최신순</option>
+            <option value="views">조회수순</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- 카테고리 필터 -->
+      <div class="category-pills" id="resultCatFilter" style="margin-bottom:24px;background:#FFFFFF;border-bottom:1.5px solid rgba(59,130,246,0.15);padding:12px 0 16px;"></div>
+
+      <!-- 영상 그리드 -->
+      <div class="video-grid" id="resultGrid"></div>
+
+      <!-- 페이지네이션 -->
+      <div id="resultPagination"></div>
+    </div>
+
+    <!-- 검색 전 초기 화면 -->
+    <div id="initialArea">
+      <div style="margin-bottom:32px;">
+        <h2 style="font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text-secondary);">카테고리별 강의</h2>
+        <div class="category-grid" id="initCategoryGrid"></div>
+      </div>
+    </div>
+
+    <!-- 결과 없음 + AI 추천 -->
+    <div id="noResultArea" style="display:none;">
+      <div class="empty-state">
+        <div class="empty-state-icon">🤷</div>
+        <div class="empty-state-title" id="noResultTitle">검색 결과가 없습니다</div>
+        <div class="empty-state-desc">다른 검색어를 시도하거나 AI 추천 강의를 확인해보세요</div>
+      </div>
+      <div style="margin-top:40px;">
+        <h3 style="font-size:1rem;font-weight:700;margin-bottom:16px;text-align:center;">
+          🤖 AI 추천 강의
+        </h3>
+        <div class="video-grid" id="aiRecommendGrid"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="siteFooter"></div>
+<script>injectFooter();</script>
+
+<div id="toast-container"></div>
+
+<script src="js/supabase.js" onerror="console.warn('supabase.js 없음')"></script>
+<script>
+let currentQuery = getUrlParam('q', '');
+let currentCatFilter = 'all';
+let currentSortResult = 'relevance';
+let currentResultPage = 1;
+const PAGE_SIZE = APP_CONFIG.PAGE_SIZE || 20;
+
+// ── 초기 카테고리 그리드 ──
+function renderInitCategories() {
+  const grid = document.getElementById('initCategoryGrid');
+  if (!grid) return;
+  grid.innerHTML = CATEGORIES.map(cat => `
+    <a href="categories.html?cat=${cat.id}" class="category-card card-hover">
+      <div class="category-card-icon">${cat.icon}</div>
+      <div class="category-card-name">${cat.name}</div>
+      <div class="category-card-count">${DUMMY_CATEGORY_COUNTS[cat.id] || 0}개</div>
+    </a>
+  `).join('');
+}
+
+// ── 검색 실행 ──
+function doSearch(q) {
+  if (!q || !q.trim()) return;
+  currentQuery = q.trim();
+  currentResultPage = 1;
+  document.getElementById('searchInput').value = currentQuery;
+  updateUrlParams({ q: currentQuery });
+  document.getElementById('autocomplete').classList.remove('visible');
+  performSearch();
+}
+
+async function performSearch() {
+  const q = currentQuery;
+  if (!q) return;
+
+  document.getElementById('initialArea').style.display = 'none';
+  document.getElementById('noResultArea').style.display = 'none';
+  document.getElementById('resultsArea').style.display = 'block';
+  document.getElementById('resultGrid').innerHTML = renderSkeletonCards(PAGE_SIZE);
+  document.getElementById('resultTitle').textContent = `"${q}" 검색 결과`;
+  document.getElementById('resultMeta').textContent = '검색 중...';
+
+  let videos = [];
+  let totalCount = 0;
+
+  if (window.supabaseClient) {
+    try {
+      let query = window.supabaseClient
+        .from('videos')
+        .select('*', { count: 'exact' })
+        .ilike('title', `%${q}%`);
+      if (currentCatFilter !== 'all') query = query.eq('category_id', currentCatFilter);
+
+      const sortMap = {
+        relevance: { col: 'view_count', asc: false },
+        latest:    { col: 'published_at', asc: false },
+        views:     { col: 'view_count', asc: false },
+      };
+      const s = sortMap[currentSortResult] || sortMap.relevance;
+      query = query.order(s.col, { ascending: s.asc });
+      query = query.range((currentResultPage - 1) * PAGE_SIZE, currentResultPage * PAGE_SIZE - 1);
+
+      const { data, count } = await query;
+      if (data) { videos = data; totalCount = count || 0; }
+    } catch(e) {}
+  }
+
+  if (!videos.length) {
+    const lower = q.toLowerCase();
+    let all = DUMMY_VIDEOS.filter(v => v.title.toLowerCase().includes(lower));
+    if (currentCatFilter !== 'all') all = all.filter(v => v.category_id === currentCatFilter);
+    totalCount = all.length;
+
+    const sortFn = {
+      relevance: (a, b) => b.view_count - a.view_count,
+      latest:    (a, b) => new Date(b.published_at) - new Date(a.published_at),
+      views:     (a, b) => b.view_count - a.view_count,
+    };
+    all.sort(sortFn[currentSortResult] || sortFn.relevance);
+    videos = all.slice((currentResultPage - 1) * PAGE_SIZE, currentResultPage * PAGE_SIZE);
+  }
+
+  // 카테고리 필터 렌더링
+  renderResultCatFilter();
+
+  if (!videos.length) {
+    document.getElementById('resultsArea').style.display = 'none';
+    document.getElementById('noResultArea').style.display = 'block';
+    document.getElementById('noResultTitle').textContent = `"${q}" 검색 결과가 없습니다`;
+    loadAiRecommend();
+    return;
+  }
+
+  document.getElementById('resultMeta').textContent =
+    `${formatNumber(totalCount)}개 결과 · ${currentResultPage}/${Math.ceil(totalCount / PAGE_SIZE)} 페이지`;
+
+  // 검색어 하이라이트 포함 카드 렌더링
+  document.getElementById('resultGrid').innerHTML = videos.map(v => {
+    const highlighted = highlightText(v.title, q);
+    const category = getCategoryById(v.category_id);
+    const catBadge = category ? `<span class="badge badge-blue">${category.icon} ${category.name}</span>` : '';
+    const thumb = v.thumbnail_url || `https://i.ytimg.com/vi/${v.video_id}/hqdefault.jpg`;
+    return `
+      <article class="video-card" onclick="window.location.href='video.html?id=${v.video_id}'" role="link" tabindex="0">
+        <div class="video-card-thumb">
+          <img src="${thumb}" alt="${escapeHtml(v.title)}" loading="lazy"
+            onerror="this.src='https://i.ytimg.com/vi/${v.video_id}/hqdefault.jpg'">
+          <div class="video-card-play"><div class="play-icon">▶</div></div>
+        </div>
+        <div class="video-card-body">
+          <div class="video-card-category">${catBadge}</div>
+          <h3 class="video-card-title">${highlighted}</h3>
+          <div class="video-card-meta">
+            <span class="video-card-meta-item">👁 ${formatNumber(v.view_count || 0)}</span>
+            <span class="video-card-meta-item">📅 ${formatDate(v.published_at, 'relative')}</span>
+          </div>
+        </div>
+      </article>
+    `;
+  }).join('');
+
+  // 페이지네이션
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+  document.getElementById('resultPagination').innerHTML = renderPagination(currentResultPage, totalPages, (p) => {
+    currentResultPage = p;
+    performSearch();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+}
+
+function renderResultCatFilter() {
+  const el = document.getElementById('resultCatFilter');
+  if (!el) return;
+  el.innerHTML = `<button class="category-pill${currentCatFilter === 'all' ? ' active' : ''}" data-cat="all">전체</button>` +
+    CATEGORIES.map(c => `<button class="category-pill${currentCatFilter === c.id ? ' active' : ''}" data-cat="${c.id}">${c.icon} ${c.name}</button>`).join('');
+
+  el.querySelectorAll('.category-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      currentCatFilter = btn.dataset.cat;
+      currentResultPage = 1;
+      performSearch();
+      el.querySelectorAll('.category-pill').forEach(b => b.classList.toggle('active', b.dataset.cat === currentCatFilter));
+    });
+  });
+}
+
+function loadAiRecommend() {
+  const grid = document.getElementById('aiRecommendGrid');
+  if (!grid) return;
+  const shuffled = [...DUMMY_VIDEOS].sort(() => Math.random() - 0.5).slice(0, 4);
+  grid.innerHTML = shuffled.map(v => renderVideoCard(v)).join('');
+}
+
+// ── 자동완성 ──
+const SEARCH_SUGGESTIONS = [
+  'ChatGPT 사용법', 'ChatGPT 프롬프트', 'Claude 활용법', 'Claude API',
+  '프롬프트 엔지니어링', '프롬프트 작성법', 'AI 자동화', '노코드 자동화',
+  'GPT-4 활용', 'AI 기초', '머신러닝 입문', '딥러닝 기초',
+  '미드저니', 'AI 그림', '코딩 AI', '파이썬 AI',
+  'AI 마케팅', 'AI 비즈니스', '업무 자동화', '챗봇 만들기',
+];
+
+document.getElementById('searchInput')?.addEventListener('input', function() {
+  const q = this.value.trim().toLowerCase();
+  const ac = document.getElementById('autocomplete');
+  if (q.length < 1) { ac.classList.remove('visible'); return; }
+  const hits = SEARCH_SUGGESTIONS.filter(s => s.toLowerCase().includes(q)).slice(0, 7);
+  if (!hits.length) { ac.classList.remove('visible'); return; }
+  ac.innerHTML = hits.map(s => `
+    <div class="autocomplete-item" onclick="doSearch('${escapeHtml(s)}')">
+      🔍 ${highlightText(s, q)}
+    </div>
+  `).join('');
+  ac.classList.add('visible');
+});
+
+document.addEventListener('click', e => {
+  if (!document.getElementById('mainSearchWrap')?.contains(e.target)) {
+    document.getElementById('autocomplete')?.classList.remove('visible');
+  }
+});
+
+document.getElementById('searchBtn')?.addEventListener('click', () => {
+  const q = document.getElementById('searchInput')?.value.trim();
+  if (q) doSearch(q);
+});
+
+document.getElementById('searchInput')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const q = e.target.value.trim();
+    if (q) doSearch(q);
+  }
+});
+
+document.getElementById('resultSort')?.addEventListener('change', function() {
+  currentSortResult = this.value;
+  currentResultPage = 1;
+  performSearch();
+});
+
+// ── 초기화 ──
+document.addEventListener('DOMContentLoaded', () => {
+  renderInitCategories();
+  if (currentQuery) {
+    document.getElementById('searchInput').value = currentQuery;
+    performSearch();
+  }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>강의 상세 — 미래역량AI연구소</title>
+  <link rel="stylesheet" href="css/main.css" />
+  <link rel="stylesheet" href="css/components.css" />
+</head>
+<body>
+
+<script src="js/config.js"></script>
+<script src="js/categories-data.js"></script>
+<script src="js/common.js"></script>
+<script>injectNav('');</script>
+
+<div class="page-wrapper">
+  <div class="container" style="padding-top:40px;padding-bottom:80px;background:#F8FAFF;">
+
+    <div class="content-with-sidebar">
+
+      <!-- ── 메인 콘텐츠 ── -->
+      <div>
+        <!-- 유튜브 임베드 -->
+        <div id="playerWrap" style="position:relative;padding-top:56.25%;background:var(--bg-surface-2);border-radius:16px;overflow:hidden;margin-bottom:24px;">
+          <div class="skeleton" style="position:absolute;inset:0;"></div>
+        </div>
+
+        <!-- 제목 + 메타 -->
+        <div id="videoInfo">
+          <div class="skeleton" style="height:28px;width:80%;border-radius:8px;margin-bottom:12px;"></div>
+          <div class="skeleton" style="height:14px;width:40%;border-radius:4px;"></div>
+        </div>
+
+        <!-- 액션 버튼 -->
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:20px;" id="videoActions">
+          <button class="btn btn-success" id="completeBtn" onclick="toggleComplete()">
+            ✅ 학습 완료 체크
+          </button>
+          <button class="btn btn-ghost btn-sm" id="shareBtn" onclick="shareVideo()">
+            🔗 공유
+          </button>
+          <button class="btn btn-ghost btn-sm" id="aiSummaryBtn" onclick="getAiSummary()">
+            🤖 AI 요약
+          </button>
+        </div>
+
+        <!-- AI 요약 패널 -->
+        <div id="aiSummaryPanel" style="display:none;margin-top:20px;padding:20px;background:linear-gradient(135deg,#EEF2FF,#E0E7FF);border:1.5px solid rgba(59,130,246,0.18);border-radius:16px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+            <span>🤖</span>
+            <span style="font-weight:600;font-size:0.9rem;">AI 요약</span>
+            <span class="badge badge-purple">Gemini</span>
+          </div>
+          <div id="aiSummaryContent" style="font-size:0.875rem;color:var(--text-secondary);line-height:1.7;"></div>
+        </div>
+
+        <!-- 설명 -->
+        <div id="videoDesc" style="margin-top:28px;padding:20px;background:var(--bg-surface);border:1px solid var(--border-color);border-radius:16px;">
+          <h3 style="font-size:0.95rem;font-weight:600;margin-bottom:12px;color:var(--text-secondary);">강의 설명</h3>
+          <div id="videoDescText" style="font-size:0.875rem;color:var(--text-secondary);line-height:1.75;white-space:pre-wrap;"></div>
+          <button id="descToggle" style="display:none;margin-top:12px;" class="btn btn-ghost btn-sm" onclick="toggleDesc()">더보기</button>
+        </div>
+
+      </div>
+
+      <!-- ── 사이드바 ── -->
+      <aside>
+        <div style="position:sticky;top:calc(var(--nav-height) + 16px);background:#FFFFFF;border:1.5px solid rgba(59,130,246,0.18);border-radius:16px;padding:20px;">
+          <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:16px;color:var(--text-secondary);">
+            📌 관련 강의
+          </h3>
+          <div id="relatedVideos" style="display:flex;flex-direction:column;gap:12px;">
+            <!-- JS 렌더링 -->
+          </div>
+          <div style="margin-top:20px;">
+            <a href="categories.html" class="btn btn-ghost btn-block" style="font-size:0.8rem;">
+              📂 카테고리 전체보기
+            </a>
+          </div>
+        </div>
+      </aside>
+
+    </div>
+  </div>
+</div>
+
+<div id="siteFooter"></div>
+<script>injectFooter();</script>
+
+<div id="toast-container"></div>
+
+<script src="js/supabase.js" onerror="console.warn('supabase.js 없음')"></script>
+<script>
+const videoId = getUrlParam('id', '');
+let currentVideo = null;
+let descExpanded = false;
+let completedState = false;
+
+// ── 영상 로드 ──
+async function loadVideo() {
+  if (!videoId) {
+    window.location.href = 'index.html';
+    return;
+  }
+
+  // 시청 기록 저장
+  saveWatchHistory(videoId);
+
+  let video = null;
+  if (window.supabaseClient) {
+    try {
+      const { data } = await window.supabaseClient
+        .from('videos').select('*').eq('video_id', videoId).single();
+      if (data) video = data;
+    } catch(e) {}
+  }
+
+  if (!video) {
+    video = DUMMY_VIDEOS.find(v => v.video_id === videoId) || {
+      video_id: videoId,
+      title: '미래역량AI연구소 강의',
+      description: 'AI 학습 플랫폼에서 제공하는 강의입니다.\n\n유튜브에서 더 많은 강의를 확인하세요.',
+      category_id: 'ai-basic',
+      view_count: 12400,
+      published_at: new Date().toISOString(),
+      thumbnail_url: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+    };
+  }
+
+  currentVideo = video;
+  completedState = isCompleted(videoId);
+  renderVideo(video);
+  loadRelated(video.category_id);
+
+  // 페이지 제목 업데이트
+  document.title = `${video.title} — 미래역량AI연구소`;
+}
+
+function renderVideo(v) {
+  // 유튜브 iframe
+  document.getElementById('playerWrap').innerHTML = `
+    <iframe
+      style="position:absolute;inset:0;width:100%;height:100%;border:none;"
+      src="https://www.youtube.com/embed/${v.video_id}?rel=0&modestbranding=1"
+      title="${escapeHtml(v.title)}"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+      allowfullscreen
+    ></iframe>
+  `;
+
+  const category = getCategoryById(v.category_id);
+  const catBadge = category
+    ? `<span class="badge badge-blue">${category.icon} ${category.name}</span>`
+    : '';
+
+  // 제목 + 메타
+  document.getElementById('videoInfo').innerHTML = `
+    <div style="margin-bottom:12px;">${catBadge}</div>
+    <h1 style="font-size:clamp(1.1rem,3vw,1.5rem);font-weight:700;line-height:1.4;margin-bottom:14px;">${escapeHtml(v.title)}</h1>
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;font-size:0.8rem;color:var(--text-muted);">
+      <span>👁 ${formatNumber(v.view_count || 0)} 조회</span>
+      <span>📅 ${formatDate(v.published_at, 'full')}</span>
+      <a href="https://www.youtube.com/watch?v=${v.video_id}" target="_blank" rel="noopener"
+        style="color:var(--color-primary-light);font-size:0.8rem;">
+        ▶ 유튜브에서 보기
+      </a>
+    </div>
+  `;
+
+  // 완료 버튼 상태
+  updateCompleteBtn();
+
+  // 설명
+  const desc = v.description || '강의 설명이 없습니다.';
+  const descEl = document.getElementById('videoDescText');
+  const toggleBtn = document.getElementById('descToggle');
+  const MAX_LEN = 300;
+
+  if (desc.length > MAX_LEN) {
+    descEl.textContent = desc.slice(0, MAX_LEN) + '...';
+    toggleBtn.style.display = 'inline-flex';
+    toggleBtn.dataset.full = desc;
+  } else {
+    descEl.textContent = desc;
+  }
+}
+
+function toggleDesc() {
+  const descEl = document.getElementById('videoDescText');
+  const btn = document.getElementById('descToggle');
+  if (!descExpanded) {
+    descEl.textContent = btn.dataset.full;
+    btn.textContent = '접기';
+    descExpanded = true;
+  } else {
+    descEl.textContent = btn.dataset.full.slice(0, 300) + '...';
+    btn.textContent = '더보기';
+    descExpanded = false;
+  }
+}
+
+// ── 관련 영상 로드 ──
+async function loadRelated(categoryId) {
+  const el = document.getElementById('relatedVideos');
+  if (!el) return;
+  el.innerHTML = renderSkeletonCards(3);
+
+  let videos = [];
+  if (window.supabaseClient) {
+    try {
+      const { data } = await window.supabaseClient
+        .from('videos')
+        .select('*')
+        .eq('category_id', categoryId)
+        .neq('video_id', videoId)
+        .order('view_count', { ascending: false })
+        .limit(5);
+      if (data) videos = data;
+    } catch(e) {}
+  }
+  if (!videos.length) {
+    videos = DUMMY_VIDEOS
+      .filter(v => v.category_id === categoryId && v.video_id !== videoId)
+      .slice(0, 5);
+    if (!videos.length) videos = DUMMY_VIDEOS.filter(v => v.video_id !== videoId).slice(0, 5);
+  }
+
+  if (!videos.length) {
+    el.innerHTML = '<p style="font-size:0.8rem;color:var(--text-muted);">관련 강의가 없습니다.</p>';
+    return;
+  }
+  el.innerHTML = videos.map(v => renderVideoCard(v, { horizontal: true })).join('');
+}
+
+// ── 학습 완료 토글 ──
+function toggleComplete() {
+  if (!videoId) return;
+  completedState = !completedState;
+  if (completedState) {
+    markCompleted(videoId);
+    showToast('학습 완료!', 'success', '이 강의를 완료 목록에 추가했습니다.');
+  } else {
+    const comp = getCompleted().filter(id => id !== videoId);
+    localStorage.setItem('fc_completed', JSON.stringify(comp));
+    showToast('완료 취소', 'info', '완료 목록에서 제거했습니다.');
+  }
+  updateCompleteBtn();
+}
+
+function updateCompleteBtn() {
+  const btn = document.getElementById('completeBtn');
+  if (!btn) return;
+  if (completedState) {
+    btn.textContent = '✓ 학습 완료됨';
+    btn.classList.remove('btn-success');
+    btn.classList.add('btn-ghost');
+  } else {
+    btn.textContent = '✅ 학습 완료 체크';
+    btn.classList.remove('btn-ghost');
+    btn.classList.add('btn-success');
+  }
+}
+
+// ── 공유 ──
+function shareVideo() {
+  const url = window.location.href;
+  if (navigator.share) {
+    navigator.share({
+      title: currentVideo?.title || '미래역량AI연구소 강의',
+      url,
+    }).catch(() => _copyToClipboard(url));
+  } else {
+    _copyToClipboard(url);
+  }
+}
+function _copyToClipboard(text) {
+  navigator.clipboard.writeText(text)
+    .then(() => showToast('URL 복사됨', 'success', '클립보드에 복사되었습니다.'))
+    .catch(() => showToast('복사 실패', 'error', '직접 URL을 복사해주세요.'));
+}
+
+// ── AI 요약 (Gemini) ──
+async function getAiSummary() {
+  const panel = document.getElementById('aiSummaryPanel');
+  const content = document.getElementById('aiSummaryContent');
+  const btn = document.getElementById('aiSummaryBtn');
+
+  if (panel.style.display !== 'none') {
+    panel.style.display = 'none';
+    return;
+  }
+
+  panel.style.display = 'block';
+  btn.classList.add('btn-loading');
+  btn.disabled = true;
+  content.innerHTML = '<div class="animate-pulse">AI가 강의를 분석 중입니다...</div>';
+
+  try {
+    const apiKey = APP_CONFIG.GEMINI_API_KEY;
+    if (!apiKey || apiKey === 'YOUR_GEMINI_API_KEY') throw new Error('API key 미설정');
+
+    const title = currentVideo?.title || '미래역량AI연구소 강의';
+    const prompt = `다음 AI 강의 제목을 보고 예상되는 핵심 내용을 3~5줄로 한국어로 요약해주세요:\n\n"${title}"\n\n요약:`;
+
+    const resp = await fetch(`${APP_CONFIG.GEMINI_API_BASE}/models/gemini-pro:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+    });
+
+    if (!resp.ok) throw new Error('Gemini API 오류');
+    const json = await resp.json();
+    const text = json.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    content.textContent = text;
+  } catch (e) {
+    // 더미 요약
+    const title = currentVideo?.title || '';
+    content.innerHTML = `
+      <p>이 강의는 <strong>${escapeHtml(title)}</strong>에 관한 내용입니다.</p>
+      <br>
+      <p>주요 학습 내용:</p>
+      <ul style="margin-top:8px;padding-left:16px;display:flex;flex-direction:column;gap:4px;">
+        <li>• AI 도구의 기본 개념과 활용 방법</li>
+        <li>• 실무에 바로 적용할 수 있는 실전 팁</li>
+        <li>• 생산성을 높이는 구체적인 사례</li>
+        <li>• 초보자도 따라할 수 있는 단계별 안내</li>
+      </ul>
+      <p style="margin-top:12px;font-size:0.75rem;color:var(--text-muted);">※ Gemini API 키 설정 후 실제 AI 요약이 제공됩니다.</p>
+    `;
+  } finally {
+    btn.classList.remove('btn-loading');
+    btn.disabled = false;
+  }
+}
+
+// ── 초기화 ──
+document.addEventListener('DOMContentLoaded', loadVideo);
+</script>
+</body>
+</html>
