@@ -457,6 +457,12 @@
         <option value="100">100개씩</option>
         <option value="200">200개씩</option>
       </select>
+      <button id="lectureToggleBtn" onclick="toggleLectureOnly()"
+        style="flex-shrink:0;padding:6px 12px;border-radius:20px;border:1.5px solid #6366F1;
+               background:#EEF2FF;color:#4338CA;font-size:0.78rem;font-weight:700;cursor:pointer;
+               white-space:nowrap;font-family:inherit;">
+        강의만 보기
+      </button>
       <div class="ctrl-count" id="countLabel">–</div>
     </div>
   </div>
@@ -509,6 +515,7 @@ let perPage = 50;
 let searchQ = '';
 let sortField = 'date';
 let sortDir = 'desc';
+let lectureOnly = true; // 기본값: 강의만 표시
 
 /* ── 초기화 ── */
 window.addEventListener('DOMContentLoaded', () => {
@@ -578,8 +585,22 @@ function onPerPage() {
   applyFilters();
 }
 
+function toggleLectureOnly() {
+  lectureOnly = !lectureOnly;
+  const btn = document.getElementById('lectureToggleBtn');
+  if (btn) {
+    btn.textContent = lectureOnly ? '강의만 보기' : '전체 보기';
+    btn.style.background = lectureOnly ? '#EEF2FF' : '#F1F5F9';
+    btn.style.color = lectureOnly ? '#4338CA' : '#64748B';
+    btn.style.borderColor = lectureOnly ? '#6366F1' : '#CBD5E1';
+  }
+  currentPage = 1;
+  applyFilters();
+}
+
 function applyFilters() {
   filtered = allVideos.filter(v => {
+    if (lectureOnly && typeof isLecture === 'function' && !isLecture(v)) return false;
     if (currentYear !== 'all' && (!v.date || !v.date.startsWith(currentYear))) return false;
     if (searchQ && !v.title.toLowerCase().includes(searchQ)) return false;
     return true;

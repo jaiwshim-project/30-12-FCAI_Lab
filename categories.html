@@ -135,6 +135,12 @@
     <div class="control-bar">
       <div class="result-info" id="resultInfo">로딩 중…</div>
       <div style="display:flex;align-items:center;gap:8px;">
+        <button id="lectureToggleBtn" onclick="toggleLectureOnly()"
+          style="padding:5px 11px;border-radius:20px;border:1.5px solid #6366F1;
+                 background:#EEF2FF;color:#4338CA;font-size:0.78rem;font-weight:700;
+                 cursor:pointer;white-space:nowrap;font-family:inherit;">
+          강의만 보기
+        </button>
         <label for="sortSelect" style="font-size:0.8rem;color:var(--text-muted);">정렬</label>
         <select class="sort-select" id="sortSelect">
           <option value="latest">최신순</option>
@@ -160,10 +166,11 @@
 <script>
 /* ─── 상태 ─────────────────────────────────────────────── */
 var state = {
-  mainId : getUrlParam('main', 'all'),
-  subId  : getUrlParam('sub',  'all'),
-  sort   : getUrlParam('sort', 'latest'),
-  page   : parseInt(getUrlParam('page', '1'), 10) || 1,
+  mainId      : getUrlParam('main', 'all'),
+  subId       : getUrlParam('sub',  'all'),
+  sort        : getUrlParam('sort', 'latest'),
+  page        : parseInt(getUrlParam('page', '1'), 10) || 1,
+  lectureOnly : true, // 기본값: 강의만 표시
 };
 var PAGE_SIZE = 20;
 
@@ -177,6 +184,9 @@ var SORT_FNS = {
 /* ─── 필터링 ─────────────────────────────────────────────── */
 function getFilteredVideos() {
   var all = getCategorizedVideos();
+  if (state.lectureOnly && typeof isLecture === 'function') {
+    all = all.filter(isLecture);
+  }
   if (state.mainId !== 'all') {
     all = all.filter(function(v){ return v.mainId === state.mainId; });
   }
@@ -347,6 +357,20 @@ function syncUrl() {
     sort: state.sort   !== 'latest' ? state.sort : null,
     page: state.page   >  1        ? state.page  : null,
   });
+}
+
+/* ─── 강의/전체 토글 ──────────────────────────────────────── */
+function toggleLectureOnly() {
+  state.lectureOnly = !state.lectureOnly;
+  var btn = document.getElementById('lectureToggleBtn');
+  if (btn) {
+    btn.textContent   = state.lectureOnly ? '강의만 보기' : '전체 보기';
+    btn.style.background   = state.lectureOnly ? '#EEF2FF' : '#F1F5F9';
+    btn.style.color        = state.lectureOnly ? '#4338CA' : '#64748B';
+    btn.style.borderColor  = state.lectureOnly ? '#6366F1' : '#CBD5E1';
+  }
+  state.page = 1;
+  renderVideos();
 }
 
 /* ─── 정렬 이벤트 ─────────────────────────────────────────── */

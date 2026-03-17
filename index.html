@@ -539,11 +539,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-  /* ── 통계 카드 동적 계산 ── */
+  /* ── 통계 카드 동적 계산 (강의만 기준) ── */
   if (typeof VIDEOS_DATA !== 'undefined' && typeof groupVideosBySeries === 'function') {
-    var seriesCount = groupVideosBySeries(VIDEOS_DATA).length;
+    var lectures = typeof isLecture === 'function' ? VIDEOS_DATA.filter(isLecture) : VIDEOS_DATA;
+    var seriesCount = groupVideosBySeries(lectures).length;
     document.getElementById('statSeries').textContent = seriesCount.toLocaleString();
-    document.getElementById('statTotal').textContent  = VIDEOS_DATA.length.toLocaleString();
+    document.getElementById('statTotal').textContent  = lectures.length.toLocaleString();
   }
 
   renderCatBrowse();

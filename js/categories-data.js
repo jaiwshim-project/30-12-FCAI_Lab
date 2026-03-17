@@ -378,6 +378,17 @@ function groupVideosBySeries(videos) {
   return result.concat(noSeries);
 }
 
+/**
+ * 실제 강의 여부 판단 — 재생시간 60초 미만은 Shorts/비강의로 간주
+ */
+function isLecture(v) {
+  var iso = (v && v.duration) || '';
+  var m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!m) return true; // duration 없으면 강의로 취급
+  var sec = (parseInt(m[1]||0)*3600) + (parseInt(m[2]||0)*60) + parseInt(m[3]||0);
+  return sec >= 60;
+}
+
 /* ── 전역 노출 ───────────────────────────────────────────── */
 if (typeof window !== 'undefined') {
   window.TAXONOMY             = TAXONOMY;
@@ -389,6 +400,7 @@ if (typeof window !== 'undefined') {
   window.getSubById           = getSubById;
   window.extractSeriesInfo    = extractSeriesInfo;
   window.groupVideosBySeries  = groupVideosBySeries;
+  window.isLecture            = isLecture;
 }
 
 if (typeof module !== 'undefined' && module.exports) {
